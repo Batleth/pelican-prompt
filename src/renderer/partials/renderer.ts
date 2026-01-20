@@ -137,58 +137,6 @@ function editPartial(index: number): void {
   }
 }
 
-// Show input dialog for new partial
-function showInputDialog(): Promise<string | null> {
-  return new Promise((resolve) => {
-    const dialog = document.getElementById('input-dialog') as HTMLDivElement;
-    const input = document.getElementById('dialog-input') as HTMLInputElement;
-    const confirmBtn = document.getElementById('dialog-confirm') as HTMLButtonElement;
-    const cancelBtn = document.getElementById('dialog-cancel') as HTMLButtonElement;
-    
-    // Show dialog
-    dialog.style.display = 'flex';
-    input.value = '';
-    input.focus();
-    
-    // Handle confirm
-    const handleConfirm = () => {
-      const value = input.value.trim();
-      cleanup();
-      resolve(value || null);
-    };
-    
-    // Handle cancel
-    const handleCancel = () => {
-      cleanup();
-      resolve(null);
-    };
-    
-    // Handle Enter key
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleConfirm();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        handleCancel();
-      }
-    };
-    
-    // Cleanup function
-    const cleanup = () => {
-      dialog.style.display = 'none';
-      confirmBtn.removeEventListener('click', handleConfirm);
-      cancelBtn.removeEventListener('click', handleCancel);
-      input.removeEventListener('keydown', handleKeyDown);
-    };
-    
-    // Add event listeners
-    confirmBtn.addEventListener('click', handleConfirm);
-    cancelBtn.addEventListener('click', handleCancel);
-    input.addEventListener('keydown', handleKeyDown);
-  });
-}
-
 // Create a new partial
 async function createNewPartial(): Promise<void> {
   const promptsFolder = await window.electronAPI.getPromptsFolder();

@@ -8,6 +8,7 @@ A powerful, file-based prompt management application built with Electron for mac
 - **Global Shortcut Access**: Instantly open the search dialog with `Cmd+K` (Mac) or `Ctrl+K` (Windows)
 - **File-based Storage**: All prompts stored as Markdown (`.md`) files in your chosen folder
 - **Transparent Floating UI**: Clean, always-on-top interface that blurs away when not in focus
+- **Dark Mode**: Toggle between light and dark themes with the button in the window's drag handle (theme syncs across all windows)
 - **Auto-reload**: Prompts are automatically reloaded from disk when you open the search window
 
 ### Search & Organization
@@ -169,6 +170,7 @@ Note: If you change the tag or title, the file will be renamed automatically.
 - `Cmd/Ctrl+N`: Create a new prompt
 - `Cmd/Ctrl+E`: Edit the selected prompt
 - `Esc`: Close the search window
+- **Theme Toggle**: Click the 🌙/☀️ button in the drag handle to switch between light and dark modes
 
 #### Editor Window
 - Standard text editing shortcuts apply
@@ -213,57 +215,9 @@ Prompts are saved as Markdown files with the naming convention:
   - macOS: `~/Library/Application Support/pelican-prompt/`
   - Windows: `%APPDATA%/pelican-prompt/`
   - Linux: `~/.config/pelican-prompt/`
+- **Theme**: User's theme preference (light/dark) persists across sessions
 
 ## Development
-
-### Project Structure
-
-```
-PromptLib/
-├── src/
-## 🏗️ Technical Architecture
-
-### Technology Stack
-- **Electron 40.0.0**: Cross-platform desktop framework
-- **TypeScript 5.9.3**: Type-safe development
-- **Electron Forge**: Build toolchain with Webpack
-- **lunr.js 2.3.9**: Client-side full-text search
-- **chokidar 5.0.0**: File system watcher
-- **electron-store 11.0.2**: Persistent settings storage
-
-### Application Structure
-
-```
-src/
-├── main.ts                 # Main process (window management, IPC handlers, global shortcuts)
-├── preload.ts              # IPC bridge (secure renderer-main communication)
-├── promptManager.ts        # Core logic (file operations, search indexing, disk reload)
-├── types.ts                # TypeScript interfaces (Prompt, SearchResult, Partial)
-└── renderer/
-    ├── search/             # Search window (frameless, transparent, always-on-top)
-    │   ├── index.html
-    │   └── renderer.ts
-    └── editor/             # Editor window (prompt creation/editing)
-        ├── index.html
-        └── renderer.ts
-```
-
-### Key Design Decisions
-
-1. **File-based Storage**: Markdown files with `[tag]_[title].md` naming convention
-2. **Disk Reload Strategy**: Prompts are reloaded from disk on every window show (Cmd+K) to ensure freshness
-3. **Search Ranking**: Weighted field boosting (Title: 10x, Tag: 5x, Content: 1x) for relevant results
-4. **Parameter Detection**: Regex-based `[PARAM_NAME]` parsing during file read
-5. **Window Architecture**: 
-   - Search: Frameless, transparent, always-on-top, hides on blur
-   - Editor: Standard window for better focus during content creation
-
-### File Watcher
-- Monitors `*.md` files in the prompts folder
-- Automatically rebuilds search index on file changes
-- Backup: Manual reload on window focus ensures no missed changes
-
-## 🔧 Development
 
 ### Running in Development
 
@@ -297,6 +251,7 @@ npm run make     # Create distributable packages (Squirrel for Windows, ZIP for 
    - Search by content: just type words
    - Filter by tag: `tag:work` or `tag:code`
    - Combine: `tag:email client meeting` finds emails about client meetings
+7. **Dark Mode**: Your theme preference syncs across all windows and persists between sessions
 
 ## 🐛 Troubleshooting
 
@@ -322,75 +277,10 @@ npm run make     # Create distributable packages (Squirrel for Windows, ZIP for 
 - Check if window is hidden behind other applications
 - Restart the application
 
-## 🔄 Migrating from Old Version
-
-If you have existing prompts using the old `tag_Title.md` filename format, use the migration script:
-
-```bash
-npx ts-node migrate.ts /path/to/your/prompts/folder
-```
-
-This will:
-1. Create a `prompts/` subfolder in your selected folder
-2. Convert `tag_Title.md` files to `prompts/tag/Title.md` structure
-3. Preserve all prompt content and parameters
-4. Skip non-conforming files (like README.md)
-
-**Example:**
-```bash
-npx ts-node migrate.ts ~/Documents/MyPrompts
-
-# Before:
-# ~/Documents/MyPrompts/
-#   work_Meeting_Notes.md
-#   code_Python_Function.md
-
-# After:
-# ~/Documents/MyPrompts/
-#   prompts/
-#     work/
-#       Meeting_Notes.md
-#     code/
-#       Python_Function.md
-```
-
-## 📝 File Format Specification
-
-### Folder and Filename Convention
-
-Prompts are stored in a hierarchical folder structure within the `prompts/` subfolder:
-
-```
-prompts/
-  [tag-segment-1]/
-    [tag-segment-2]/
-      ...
-        [Title].md
-```
-
-**Examples:**
-- `prompts/work/Meeting_Notes.md` → tag: `work`, title: "Meeting Notes"
-- `prompts/com/mail/formal/Business_Letter.md` → tag: `com-mail-formal`, title: "Business Letter"  
-- `prompts/code/python/async/Retry_Logic.md` → tag: `code-python-async`, title: "Retry Logic"
-
-**Rules:**
-- Tag segments joined by hyphens in the UI
-- Maximum 5 levels of folder nesting
-- Filename (without .md) becomes the prompt title
-- Tag segments: letters, numbers, underscores, hyphens only
-
-### Parameter Syntax
-Parameters are defined inline using square brackets with uppercase names:
-```markdown
-Hello [RECIPIENT_NAME],
-
-This is regarding [PROJECT_NAME]...
-```
-
-Valid parameter names:
-- Uppercase letters: `A-Z`
-- Underscores: `_`
-- Examples: `[NAME]`, `[PROJECT_ID]`, `[START_DATE]`
+### Theme Not Applying
+- The theme toggle button is in the drag handle at the top of the search window
+- Theme changes sync automatically across all open windows
+- If theme seems stuck, try restarting the application
 
 ## 🤝 Contributing
 
@@ -409,21 +299,3 @@ MIT License - feel free to use and modify for your needs.
 ---
 
 **Made with ❤️ for productivity**
-
-- Ensure prompts are saved in the correct folder
-- Check that files have the `.md` extension
-- Try reopening the app to rebuild the search index
-
-### Application Won't Start
-
-- Run `npm install` again to ensure all dependencies are installed
-- Check the console for error messages
-- Try deleting `node_modules` and running `npm install` again
-
-## License
-
-MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.

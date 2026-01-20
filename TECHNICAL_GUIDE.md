@@ -148,6 +148,89 @@ function extractParameters(content: string): string[] {
 
 **Save Flow**:
 1. Validate inputs (tag + title)
+2. Construct file path from tag hierarchy
+3. Create nested folders if needed
+4. Write content to disk
+5. Close editor window
+6. Main window auto-reloads on next show
+
+### 4. Dark Mode & Theme Management
+
+**Architecture**:
+- CSS class-based theming (`.dark` on `<body>`)
+- Theme stored in electron-store as `'light'` or `'dark'`
+- Cross-window theme synchronization via IPC
+- Theme persists across sessions
+
+**Implementation**:
+
+```typescript
+// Main Process (main.ts)
+ipcMain.handle('get-theme', () => {
+  return store.get('theme', 'light');
+});
+
+ipcMain.handle('set-theme', (_event, theme: string) => {
+  store.set('theme', theme);
+  // Broadcast to all windows
+  BrowserWindow.getAllWindows().forEach(window => {
+    window.webContents.send('theme-changed', theme);
+  });
+  return theme;
+});
+
+// Renderer Process
+async function initTheme() {
+  const theme = await window.electronAPI.getTheme();
+  applyTheme(theme);
+  
+  window.electronAPI.onThemeChanged((theme) => {
+    applyTheme(theme);
+  });
+}
+
+function applyTheme(theme: string) {
+  if (theme === 'dark') {
+    document.body.classList.add('dark');
+  } else {
+    document.body.classList.remove('dark');
+  }
+}
+```
+
+**Theme Toggle UI**:
+- Positioned in drag handle (search window)
+- Toggle button shows 🌙 (light mode) or ☀️ (dark mode)
+- Clicking toggles theme, updates all windows instantly
+- Focus restored to search input after toggle
+
+**CSS Variables**:
+All colors defined with light/dark variants:
+```css
+body {
+  --bg-primary: #ffffff;
+  --text-primary: #2c3e50;
+  /* ...other light mode colors */
+}
+
+body.dark {
+  --bg-primary: #1e1e1e;
+  --text-primary: #e0e0e0;
+  /* ...other dark mode colors */
+}
+```
+
+**Modal Theming**:
+Dynamic modals (parameter dialog) compute colors based on current theme:
+```typescript
+const isDark = document.body.classList.contains('dark');
+const bgColor = isDark ? '#2d2d2d' : '#ffffff';
+const textColor = isDark ? '#e0e0e0' : '#2c3e50';
+```
+
+## Data Flow Diagrams
+
+### Prompt Creation Flow
 2. Call `electronAPI.savePrompt(tag, title, content)`
 3. IPC → Main process
 4. PromptManager writes file: `[tag]_[title].md`
@@ -426,9 +509,9 @@ module.exports = {
 
 ### Short-term
 - [ ] Customizable keyboard shortcuts
-- [ ] Dark mode support
 - [ ] Export/import prompt collections
 - [ ] Prompt usage statistics
+- [ ] Partial templates browser
 
 ### Medium-term
 - [ ] Multi-tag support
