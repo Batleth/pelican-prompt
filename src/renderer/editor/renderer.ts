@@ -1,5 +1,5 @@
 import { Prompt, Partial } from '../../types';
-import '../styles/common.css';
+import '../styles/design-system.css';
 import '../styles/editor.css';
 
 let currentPrompt: Prompt | null = null;
@@ -104,8 +104,16 @@ function setupEventListeners() {
     });
   }
 
-  // Add ESC key handler to close window
+  // Add ESC key handler to close window and Cmd+S to save
   document.addEventListener('keydown', (e) => {
+    // Cmd+S to save
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault();
+      savePrompt();
+      return;
+    }
+    
+    // ESC to close
     if (e.key === 'Escape' && (!autocompleteDiv || autocompleteDiv.classList.contains('is-hidden'))) {
       e.preventDefault();
       if (isPartial) {
@@ -119,6 +127,7 @@ function setupEventListeners() {
   if (contentTextarea) {
     contentTextarea.addEventListener('input', (e) => {
       updateParameterInfo();
+      renderFooter();
       handleAutocomplete(e);
     });
 
@@ -156,6 +165,20 @@ function extractParameters(content: string): string[] {
   }
   
   return parameters;
+}
+
+function extractPartials(content: string): string[] {
+  const partialRegex = /\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
+  const partials: string[] = [];
+  let match;
+  
+  while ((match = partialRegex.exec(content)) !== null) {
+    if (!partials.includes(match[1])) {
+      partials.push(match[1]);
+    }
+  }
+  
+  return partials;
 }
 
 async function handleAutocomplete(e: Event) {
@@ -384,6 +407,46 @@ async function savePrompt() {
   }
 }
 
+function renderFooter() {
+  const footer = document.getElementById('editor-footer');
+  if (!footer) return;
+
+  const contentTextarea = document.getElementById('content-textarea') as HTMLTextAreaElement;
+  const content = contentTextarea?.value || currentPrompt?.content || '';
+
+  // Extract parameters and partials from current content
+  const parameters = extractParameters(content);
+  const partials = extractPartials(content);
+
+  const paramCount = parameters.length;
+  const partialCount = partials.length;
+
+  footer.innerHTML = `
+    <div class="footer-left">
+      <div class="keyboard-hint">
+        <span class="kbd">Cmd+S</span> Save • <span class="kbd">Esc</span> Cancel
+      </div>
+      <div class="footer-hint">
+        Use <span class="hint-param">[PARAM_NAME]</span> for dynamic parameters • Use <span class="hint-partial">{{> partial.path}}</span> to include partials
+      </div>
+    </div>
+    <div class="footer-right">
+      ${paramCount > 0 ? `
+        <div class="footer-badge-item">
+          <span class="badge badge-param">${paramCount}</span>
+          <span>Parameter${paramCount !== 1 ? 's' : ''}</span>
+        </div>
+      ` : ''}
+      ${partialCount > 0 ? `
+        <div class="footer-badge-item">
+          <span class="badge badge-partial">${partialCount}</span>
+          <span>Partial${partialCount !== 1 ? 's' : ''}</span>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
 function render() {
   const editor = document.getElementById('editor');
   const editorTitle = document.getElementById('editor-title');
@@ -415,52 +478,58 @@ function render() {
     editor.innerHTML = `
       <div class="form-group">
         <label for="title-input">Partial Path</label>
-        <input type="text" id="title-input" value="${title}" placeholder="tones.urgent" ${readonlyAttr} />
-        <div class="hint">${pathHint}</div>
+        <input type="text" id="title-input" class="form-input" value="${title}" placeholder="tones.urgent" ${readonlyAttr} />
+        <div class="form-hint">${pathHint}</div>
       </div>
       
       <!-- Hidden tag input for partials -->
       <input type="hidden" id="tag-input" value="" />
       
+      <div class="section-divider"></div>
+      
       <div id="param-info" class="param-info" style="display: none;"></div>
       
-      <div class="form-group">
+      <div class="form-group content-group">
         <label for="content-textarea">Content</label>
-        <textarea id="content-textarea" placeholder="Enter the partial content here...
+        <textarea id="content-textarea" class="form-textarea" placeholder="Enter the partial content here...
 
 Note: Partials cannot contain other partials (no {{> }} syntax allowed).">${content}</textarea>
-        <div class="hint">Reusable content that can be included in prompts using {{> ${title || 'partial.path'}}}</div>
       </div>
     `;
   } else {
     editor.innerHTML = `
-      <div class="two-column">
+      <!-- Metadata Row: Two-column grid -->
+      <div class="metadata-grid">
         <div class="form-group">
           <label for="tag-input">Tag</label>
-          <input type="text" id="tag-input" value="${tag}" placeholder="com-mail" />
-          <div class="hint">Hierarchical tag using hyphens (e.g., com-mail-formal, code-python-async). Max 5 levels.</div>
+          <input type="text" id="tag-input" class="form-input" value="${tag}" placeholder="com-mail" />
+          <div class="form-hint">Hierarchical tag using hyphens (e.g., com-mail-formal, code-python-async). Max 5 levels.</div>
         </div>
         <div class="form-group">
           <label for="title-input">Title</label>
-          <input type="text" id="title-input" value="${title}" placeholder="My Prompt Title" />
-          <div class="hint">Descriptive name for your prompt</div>
+          <input type="text" id="title-input" class="form-input" value="${title}" placeholder="My Prompt Title" />
+          <div class="form-hint">Descriptive name for your prompt</div>
         </div>
       </div>
       
+      <!-- Visual separator -->
+      <div class="section-divider"></div>
+      
       <div id="param-info" class="param-info" style="display: none;"></div>
       
-      <div class="form-group">
+      <!-- Content Area -->
+      <div class="form-group content-group">
         <label for="content-textarea">Content</label>
-        <textarea id="content-textarea" placeholder="Enter your prompt here...
+        <textarea id="content-textarea" class="form-textarea" placeholder="Enter your prompt here...
 
 You can use parameters like [PARAM_NAME] that will be replaced when using the prompt.
 You can also reference partials like {{> formats.email}} to reuse common content.">${content}</textarea>
-        <div class="hint">Use [PARAM_NAME] for dynamic parameters (uppercase with underscores) • Use {{> partial.path}} to include partials</div>
       </div>
     `;
   }
 
   setupEventListeners();
+  renderFooter();
   updateParameterInfo();
 
   // Focus on appropriate field

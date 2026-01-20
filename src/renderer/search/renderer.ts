@@ -1,5 +1,5 @@
 import { Prompt, SearchResult } from '../../types';
-import '../styles/common.css';
+import '../styles/design-system.css';
 import '../styles/search.css';
 
 let prompts: SearchResult[] = [];
@@ -483,9 +483,9 @@ function render() {
           <span class="workspace-name" id="workspace-name">Loading...</span>
         </div>
         <div style="display: flex; gap: 8px;">
-          <button class="change-folder-btn" id="open-folder-btn" title="Loading...">Open in Filesystem</button>
-          <button class="change-folder-btn" id="create-workspace-btn">Create Workspace</button>
-          <button class="change-folder-btn" id="change-folder-btn">Change Workspace</button>
+          <button class="btn btn-secondary btn-sm" id="open-folder-btn" title="Loading...">Open in Filesystem</button>
+          <button class="btn btn-secondary btn-sm" id="create-workspace-btn">Create Workspace</button>
+          <button class="btn btn-secondary btn-sm" id="change-folder-btn">Change Workspace</button>
         </div>
       </div>
       <input 
@@ -503,11 +503,11 @@ function render() {
       </div>
       <div class="badge-legend">
         <div class="legend-item">
-          <span class="legend-badge params">P</span>
+          <span class="badge badge-param">P</span>
           <span>Parameters</span>
         </div>
         <div class="legend-item">
-          <span class="legend-badge partials">P</span>
+          <span class="badge badge-partial">P</span>
           <span>Partials</span>
         </div>
       </div>
@@ -540,17 +540,19 @@ function renderResults() {
       
       // Create badges for params and partials
       const paramBadge = prompt.parameters.length > 0 ? 
-        `<span class="param-badge">${prompt.parameters.length}P</span>` : '';
+        `<span class="badge badge-param">${prompt.parameters.length}P</span>` : '';
       const partialsBadge = prompt.partials.length > 0 ? 
-        `<span class="partials-badge">${prompt.partials.length}P</span>` : '';
+        `<span class="badge badge-partial">${prompt.partials.length}P</span>` : '';
       
       html += `
         <div class="result-item ${selected}" data-index="${index}">
           <div class="result-title">
-            ${prompt.tag ? `<span class="result-tag">${prompt.tag}</span>` : ''}
+            <div class="badge-container">
+              ${prompt.tag ? `<span class="badge badge-primary result-tag">${prompt.tag}</span>` : ''}
+              ${paramBadge}
+              ${partialsBadge}
+            </div>
             ${prompt.title}
-            ${paramBadge}
-            ${partialsBadge}
           </div>
           <div class="result-preview">${preview}...</div>
         </div>

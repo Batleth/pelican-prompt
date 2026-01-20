@@ -1,5 +1,5 @@
 import { Partial } from '../../types';
-import '../styles/common.css';
+import '../styles/design-system.css';
 import '../styles/partials.css';
 
 let partials: Partial[] = [];
@@ -81,7 +81,7 @@ function renderPartials(): void {
             <div class="partial-preview">${escapeHtml(preview)}</div>
           </div>
           <div class="partial-actions">
-            <button class="btn-secondary btn-small edit-btn" data-index="${index}">Edit</button>
+            <button class="btn btn-secondary btn-sm edit-btn" data-index="${index}">Edit</button>
           </div>
         </div>
       `;
