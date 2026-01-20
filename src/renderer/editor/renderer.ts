@@ -89,9 +89,22 @@ async function savePrompt() {
     return;
   }
 
-  // Validate tag and title (no special characters except underscore)
-  if (!/^[a-zA-Z0-9_]+$/.test(tag) || !/^[a-zA-Z0-9_\s-]+$/.test(title)) {
-    alert('Tag can only contain letters, numbers, and underscores. Title can contain letters, numbers, spaces, hyphens, and underscores.');
+  // Validate tag (letters, numbers, underscores, hyphens)
+  if (!/^[a-zA-Z0-9_-]+$/.test(tag)) {
+    alert('Tag can only contain letters, numbers, underscores, and hyphens.');
+    return;
+  }
+
+  // Validate tag depth (max 5 levels)
+  const tagSegments = tag.split('-');
+  if (tagSegments.length > 5) {
+    alert('Tag hierarchy cannot exceed 5 levels (e.g., com-mail-formal-de-business).');
+    return;
+  }
+
+  // Validate title (no special characters except spaces, hyphens, underscores)
+  if (!/^[a-zA-Z0-9_\s-]+$/.test(title)) {
+    alert('Title can contain letters, numbers, spaces, hyphens, and underscores.');
     return;
   }
 
@@ -116,8 +129,8 @@ function render() {
     <div class="two-column">
       <div class="form-group">
         <label for="tag-input">Tag</label>
-        <input type="text" id="tag-input" value="${tag}" placeholder="work" />
-        <div class="hint">Single tag for categorization</div>
+        <input type="text" id="tag-input" value="${tag}" placeholder="com-mail" />
+        <div class="hint">Hierarchical tag using hyphens (e.g., com-mail-formal, code-python-async). Max 5 levels.</div>
       </div>
       <div class="form-group">
         <label for="title-input">Title</label>

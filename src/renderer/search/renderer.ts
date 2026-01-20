@@ -51,6 +51,7 @@ async function updateFolderDisplay() {
 function setupEventListeners() {
   const searchInput = document.getElementById('search-input') as HTMLInputElement;
   const changeFolderBtn = document.getElementById('change-folder-btn') as HTMLButtonElement;
+  const openFolderBtn = document.getElementById('open-folder-btn') as HTMLButtonElement;
   
   if (changeFolderBtn) {
     changeFolderBtn.addEventListener('click', async () => {
@@ -61,6 +62,12 @@ function setupEventListeners() {
         renderResults();
         updateFolderDisplay();
       }
+    });
+  }
+
+  if (openFolderBtn) {
+    openFolderBtn.addEventListener('click', async () => {
+      await window.electronAPI.openFolderInFilesystem();
     });
   }
   
@@ -188,6 +195,59 @@ function showParameterDialog(prompt: Prompt) {
   dialog.appendChild(dialogContent);
   app.appendChild(dialog);
 
+  // Copy handler function (Copy with Placeholders behavior)
+  const handleCopy = async () => {
+    let content = prompt.content;
+    const params: string[] = [];
+    
+    prompt.parameters.forEach(param => {
+      const input = document.getElementById(`param-${param}`) as HTMLInputElement;
+      const value = input?.value || '';
+      if (value) {
+        params.push(`${param}=${value}`);
+      } else {
+        params.push(`${param}=`);
+      }
+    });
+
+    if (params.length > 0) {
+      content += '\n\n' + params.join('\n');
+    }
+
+    await window.electronAPI.copyToClipboard(content);
+    dialog.remove();
+    window.electronAPI.hideWindow();
+  };
+
+  // Add Enter key support to all input fields
+  prompt.parameters.forEach(param => {
+    const input = document.getElementById(`param-${param}`) as HTMLInputElement;
+    if (input) {
+      console.log('Adding keydown listener to:', param);
+      input.addEventListener('keydown', (e) => {
+        console.log('Key pressed in input:', e.key);
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          console.log('Enter pressed, copying...');
+          handleCopy();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          dialog.remove();
+        }
+      });
+    } else {
+      console.warn('Could not find input for param:', param);
+    }
+  });
+
+  // Add Escape key to close dialog
+  dialog.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      dialog.remove();
+    }
+  });
+
   // Focus first input
   setTimeout(() => {
     const firstInput = document.getElementById(`param-${prompt.parameters[0]}`) as HTMLInputElement;
@@ -222,19 +282,7 @@ function showParameterDialog(prompt: Prompt) {
     window.electronAPI.hideWindow();
   });
 
-  document.getElementById('param-copy')?.addEventListener('click', async () => {
-    let content = prompt.content;
-    
-    prompt.parameters.forEach(param => {
-      const input = document.getElementById(`param-${param}`) as HTMLInputElement;
-      const value = input?.value || '';
-      content = content.replace(new RegExp(`\\[${param}\\]`, 'g'), value);
-    });
-
-    await window.electronAPI.copyToClipboard(content);
-    dialog.remove();
-    window.electronAPI.hideWindow();
-  });
+  document.getElementById('param-copy')?.addEventListener('click', handleCopy);
 }
 
 function render() {
@@ -257,13 +305,16 @@ function render() {
     <div class="search-box">
       <div class="folder-info">
         <span class="folder-path" id="folder-path">Loading...</span>
-        <button class="change-folder-btn" id="change-folder-btn">Change Folder</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="change-folder-btn" id="open-folder-btn">Open in Filesystem</button>
+          <button class="change-folder-btn" id="change-folder-btn">Change Folder</button>
+        </div>
       </div>
       <input 
         type="text" 
         id="search-input" 
         class="search-input" 
-        placeholder="Search prompts... (e.g., 'tag:work project' or 'meeting')"
+        placeholder="Search prompts... (e.g., 'tag:com-mail', 'tag:code*', or 'meeting')"
         autocomplete="off"
       />
     </div>

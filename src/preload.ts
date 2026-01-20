@@ -4,6 +4,7 @@ import { Prompt, SearchResult, ParameterValue } from './types';
 contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   getPromptsFolder: () => ipcRenderer.invoke('get-prompts-folder'),
+  openFolderInFilesystem: () => ipcRenderer.invoke('open-folder-in-filesystem'),
   searchPrompts: (query: string) => ipcRenderer.invoke('search-prompts', query),
   getAllPrompts: () => ipcRenderer.invoke('get-all-prompts'),
   savePrompt: (tag: string, title: string, content: string, existingPath?: string) => 
@@ -26,6 +27,7 @@ declare global {
     electronAPI: {
       selectFolder: () => Promise<string | null>;
       getPromptsFolder: () => Promise<string | undefined>;
+      openFolderInFilesystem: () => Promise<boolean>;
       searchPrompts: (query: string) => Promise<SearchResult[]>;
       getAllPrompts: () => Promise<Prompt[]>;
       savePrompt: (tag: string, title: string, content: string, existingPath?: string) => Promise<string>;

@@ -15,8 +15,14 @@ A powerful, file-based prompt management application built with Electron for mac
   - Title matches: 10x boost
   - Tag matches: 5x boost  
   - Content matches: 1x boost
-- **Tag Filtering**: Use `tag:tagname` syntax to filter by tag
-- **Single Tag per Prompt**: Organize with one tag per prompt (e.g., `work`, `code`, `email`)
+- **Hierarchical Tag System**: Organize prompts using folder-based hierarchical tags
+  - Use hyphens to create tag hierarchies (e.g., `com-mail-formal`, `code-python-async`)
+  - Maximum 5 levels of hierarchy
+  - Stored as nested folders (e.g., `prompts/com/mail/formal/Business_Letter.md`)
+- **Tag Filtering**: 
+  - Exact match: `tag:work`
+  - Prefix match (wildcard): `tag:com*` (matches `com-mail`, `com-letter`, etc.)
+- **Auto-cleanup**: Empty tag folders are automatically removed when all prompts are deleted
 
 ### Dynamic Parameters
 - **Parameter Syntax**: Define parameters using `[PARAM_NAME]` (uppercase with underscores)
@@ -61,15 +67,43 @@ A powerful, file-based prompt management application built with Electron for mac
 ### First Launch
 
 1. When you first open the app (using `Cmd+K` or `Ctrl+K`), you'll be prompted to select a folder where your prompts will be stored.
-2. Select or create a folder - this is where all your `.md` prompt files will be saved.
+2. Select or create a folder - the app will automatically create a `prompts/` subfolder where all your prompt files will be organized.
+
+### Folder Structure
+
+Prompts are organized in a hierarchical folder structure:
+```
+your-selected-folder/
+  prompts/
+    work/
+      Meeting_Notes.md
+      Project_Plan.md
+    com/
+      mail/
+        formal/
+          Business_Letter.md
+        casual/
+          Quick_Reply.md
+    code/
+      python/
+        async/
+          Retry_Logic.md
+```
+
+Tags are automatically derived from the folder path:
+- `prompts/work/Meeting_Notes.md` → tag: `work`
+- `prompts/com/mail/formal/Business_Letter.md` → tag: `com-mail-formal`
+- `prompts/code/python/async/Retry_Logic.md` → tag: `code-python-async`
 
 ### Creating a Prompt
 
 1. Open the search dialog with `Cmd+K` (or `Ctrl+K`)
 2. Press `Cmd+N` (or `Ctrl+N`) to create a new prompt
 3. Fill in:
-   - **Tag**: A single tag for categorization (e.g., `work`, `personal`, `code`)
-   - **Title**: A descriptive title for your prompt
+   - **Tag**: Hierarchical tag using hyphens (e.g., `com-mail-formal`, `code-python-async`)
+     - Max 5 levels: `level1-level2-level3-level4-level5`
+     - Letters, numbers, underscores, and hyphens only
+   - **Title**: A descriptive title for your prompt (becomes the filename)
    - **Content**: The actual prompt text
 4. Click **Save Prompt**
 
@@ -274,30 +308,76 @@ npm run make     # Create distributable packages (Squirrel for Windows, ZIP for 
 ### New Prompts Not Appearing
 - Press `Cmd+K` to close and reopen - prompts reload from disk automatically
 - Verify file is saved in the correct folder with `.md` extension
-- Check filename format: `[tag]_[title].md` (e.g., `work_Meeting_Notes.md`)
+- Check that file is inside the `prompts/` subfolder structure
 
 ### Search Not Finding Prompts
 - Check your search query - try broader terms
-- Use tag filter: `tag:yourtagname`
-- Verify prompts exist in the selected folder
+- Use tag filters: 
+  - Exact match: `tag:work`
+  - Prefix match: `tag:com*` (finds all tags starting with `com-`)
+- Verify prompts exist in the selected folder's `prompts/` subfolder
 
 ### Window Not Showing
 - Press `Cmd+K` / `Ctrl+K` multiple times
 - Check if window is hidden behind other applications
 - Restart the application
 
+## 🔄 Migrating from Old Version
+
+If you have existing prompts using the old `tag_Title.md` filename format, use the migration script:
+
+```bash
+npx ts-node migrate.ts /path/to/your/prompts/folder
+```
+
+This will:
+1. Create a `prompts/` subfolder in your selected folder
+2. Convert `tag_Title.md` files to `prompts/tag/Title.md` structure
+3. Preserve all prompt content and parameters
+4. Skip non-conforming files (like README.md)
+
+**Example:**
+```bash
+npx ts-node migrate.ts ~/Documents/MyPrompts
+
+# Before:
+# ~/Documents/MyPrompts/
+#   work_Meeting_Notes.md
+#   code_Python_Function.md
+
+# After:
+# ~/Documents/MyPrompts/
+#   prompts/
+#     work/
+#       Meeting_Notes.md
+#     code/
+#       Python_Function.md
+```
+
 ## 📝 File Format Specification
 
-### Filename Convention
+### Folder and Filename Convention
+
+Prompts are stored in a hierarchical folder structure within the `prompts/` subfolder:
+
 ```
-[TAG]_[TITLE].md
+prompts/
+  [tag-segment-1]/
+    [tag-segment-2]/
+      ...
+        [Title].md
 ```
-- `TAG`: Single word, becomes the prompt tag
-- `TITLE`: Human-readable title (underscores converted to spaces in UI)
-- Examples: 
-  - `code_Python_Function.md`
-  - `work_Meeting_Notes.md`
-  - `email_Professional_Reply.md`
+
+**Examples:**
+- `prompts/work/Meeting_Notes.md` → tag: `work`, title: "Meeting Notes"
+- `prompts/com/mail/formal/Business_Letter.md` → tag: `com-mail-formal`, title: "Business Letter"  
+- `prompts/code/python/async/Retry_Logic.md` → tag: `code-python-async`, title: "Retry Logic"
+
+**Rules:**
+- Tag segments joined by hyphens in the UI
+- Maximum 5 levels of folder nesting
+- Filename (without .md) becomes the prompt title
+- Tag segments: letters, numbers, underscores, hyphens only
 
 ### Parameter Syntax
 Parameters are defined inline using square brackets with uppercase names:

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, dialog, clipboard } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, dialog, clipboard, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import Store from 'electron-store';
@@ -172,6 +172,15 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-prompts-folder', () => {
     return store.get('promptsFolder');
+  });
+
+  ipcMain.handle('open-folder-in-filesystem', async () => {
+    const folder = store.get('promptsFolder') as string | undefined;
+    if (folder) {
+      await shell.openPath(folder);
+      return true;
+    }
+    return false;
   });
 
   ipcMain.handle('search-prompts', (_event, query: string) => {

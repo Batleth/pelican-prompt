@@ -9,17 +9,19 @@ export class PromptManager {
   private prompts: Map<string, Prompt> = new Map();
   private searchIndex: lunr.Index | null = null;
   private watcher: chokidar.FSWatcher | null = null;
+  private readonly MAX_TAG_DEPTH = 5;
 
-  constructor(promptsFolder: string) {
-    this.promptsFolder = promptsFolder;
+  constructor(baseFolder: string) {
+    this.promptsFolder = path.join(baseFolder, 'prompts');
     this.loadPrompts();
     this.initializeWatcher();
   }
 
   private initializeWatcher(): void {
-    this.watcher = chokidar.watch(`${this.promptsFolder}/*.md`, {
+    this.watcher = chokidar.watch(`${this.promptsFolder}/**/*.md`, {
       persistent: true,
-      ignoreInitial: true
+      ignoreInitial: true,
+      depth: this.MAX_TAG_DEPTH
     });
 
     this.watcher
@@ -39,22 +41,19 @@ export class PromptManager {
   private handleFileRemove(filePath: string): void {
     this.prompts.delete(filePath);
     this.rebuildIndex();
+    this.cleanupEmptyFolders(path.dirname(filePath));
   }
 
   private parsePromptFile(filePath: string): Prompt | null {
     try {
       const content = fs.readFileSync(filePath, 'utf-8');
       const filename = path.basename(filePath, '.md');
+      const title = filename;
       
-      // Parse tag and title from filename: [tag]_[title].md
-      const parts = filename.split('_');
-      let tag = '';
-      let title = filename;
-      
-      if (parts.length >= 2) {
-        tag = parts[0];
-        title = parts.slice(1).join('_');
-      }
+      // Extract tag from folder path hierarchy
+      const relativePath = path.relative(this.promptsFolder, path.dirname(filePath));
+      const pathSegments = relativePath === '.' ? [] : relativePath.split(path.sep);
+      const tag = pathSegments.length > 0 ? pathSegments.join('-') : '';
 
       // Extract parameters from content (e.g., [PARAM])
       const paramRegex = /\[([A-Z_]+)\]/g;
@@ -87,22 +86,32 @@ export class PromptManager {
         fs.mkdirSync(this.promptsFolder, { recursive: true });
       }
 
-      this.prompts.clear(); // Clear existing prompts
-      const files = fs.readdirSync(this.promptsFolder);
-      
-      for (const file of files) {
-        if (file.endsWith('.md')) {
-          const filePath = path.join(this.promptsFolder, file);
-          const prompt = this.parsePromptFile(filePath);
-          if (prompt) {
-            this.prompts.set(filePath, prompt);
-          }
-        }
-      }
-
+      this.prompts.clear();
+      this.loadPromptsRecursive(this.promptsFolder, 0);
       this.rebuildIndex();
     } catch (error) {
       console.error('Error loading prompts:', error);
+    }
+  }
+
+  private loadPromptsRecursive(dir: string, depth: number): void {
+    if (depth > this.MAX_TAG_DEPTH) {
+      return;
+    }
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      
+      if (entry.isDirectory()) {
+        this.loadPromptsRecursive(fullPath, depth + 1);
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        const prompt = this.parsePromptFile(fullPath);
+        if (prompt) {
+          this.prompts.set(fullPath, prompt);
+        }
+      }
     }
   }
 
@@ -145,17 +154,44 @@ export class PromptManager {
       }));
     }
 
-    // Check for tag filter: tag:tagname
+    // Check for tag filter: tag:tagname or tag:prefix* or tag:*suffix or tag:*contains*
     const tagMatch = query.match(/tag:(\S+)/);
     let filteredPrompts = Array.from(this.prompts.values());
     let searchQuery = query;
 
     if (tagMatch) {
       const tagFilter = tagMatch[1].toLowerCase();
-      filteredPrompts = filteredPrompts.filter(p => 
-        p.tag.toLowerCase() === tagFilter
-      );
+      
+      if (tagFilter.startsWith('*') && tagFilter.endsWith('*')) {
+        // Contains wildcard: tag:*python* matches code-python-async, python-utils, etc.
+        const contains = tagFilter.slice(1, -1);
+        filteredPrompts = filteredPrompts.filter(p => 
+          p.tag.toLowerCase().includes(contains)
+        );
+      } else if (tagFilter.startsWith('*')) {
+        // Suffix wildcard: tag:*python matches code-python, lang-python, etc.
+        const suffix = tagFilter.slice(1);
+        filteredPrompts = filteredPrompts.filter(p => 
+          p.tag.toLowerCase().endsWith(suffix) || 
+          p.tag.toLowerCase().includes('-' + suffix)
+        );
+      } else if (tagFilter.endsWith('*')) {
+        // Prefix wildcard: tag:code* matches code, code-python, code-js, etc.
+        const prefix = tagFilter.slice(0, -1);
+        filteredPrompts = filteredPrompts.filter(p => 
+          p.tag.toLowerCase().startsWith(prefix)
+        );
+      } else {
+        // Exact match
+        filteredPrompts = filteredPrompts.filter(p => 
+          p.tag.toLowerCase() === tagFilter
+        );
+      }
+      
       searchQuery = query.replace(/tag:\S+/g, '').trim();
+    } else {
+      // Remove incomplete "tag:" patterns (e.g., "tag:" or "tag: " without value)
+      searchQuery = query.replace(/tag:\s*/g, '').trim();
     }
 
     // If only tag filter and no other search terms, return filtered results
@@ -202,16 +238,52 @@ export class PromptManager {
     content: string, 
     existingPath?: string
   ): Promise<string> {
-    const filename = `${tag}_${title}.md`;
-    const newPath = path.join(this.promptsFolder, filename);
+    // Validate tag depth
+    const tagSegments = tag ? tag.split('-') : [];
+    if (tagSegments.length > this.MAX_TAG_DEPTH) {
+      throw new Error(`Tag hierarchy cannot exceed ${this.MAX_TAG_DEPTH} levels`);
+    }
 
-    // If editing an existing prompt with a different name, remove the old file
+    // Build folder path from tag segments
+    const folderPath = tagSegments.length > 0 
+      ? path.join(this.promptsFolder, ...tagSegments)
+      : this.promptsFolder;
+    
+    const filename = `${title}.md`;
+    const newPath = path.join(folderPath, filename);
+
+    // Create folder structure if it doesn't exist
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+
+    // If editing an existing prompt with a different path, remove the old file
     if (existingPath && existingPath !== newPath && fs.existsSync(existingPath)) {
       fs.unlinkSync(existingPath);
+      this.cleanupEmptyFolders(path.dirname(existingPath));
     }
 
     fs.writeFileSync(newPath, content, 'utf-8');
     return newPath;
+  }
+
+  private cleanupEmptyFolders(dir: string): void {
+    // Don't delete the root prompts folder
+    if (dir === this.promptsFolder || !dir.startsWith(this.promptsFolder)) {
+      return;
+    }
+
+    try {
+      const entries = fs.readdirSync(dir);
+      
+      // If directory is empty, delete it and check parent
+      if (entries.length === 0) {
+        fs.rmdirSync(dir);
+        this.cleanupEmptyFolders(path.dirname(dir));
+      }
+    } catch (error) {
+      // Ignore errors (directory might not exist or not be empty)
+    }
   }
 
   public destroy(): void {
