@@ -1,4 +1,6 @@
 import { Partial } from '../../types';
+import '../styles/common.css';
+import '../styles/partials.css';
 
 let partials: Partial[] = [];
 let filteredPartials: Partial[] = [];
@@ -186,6 +188,7 @@ searchInput.addEventListener('keydown', (e: KeyboardEvent) => {
       editPartial(selectedIndex);
     }
   } else if (e.key === 'Escape') {
+    e.preventDefault();
     window.close();
   }
 });
@@ -217,6 +220,7 @@ window.addEventListener('focus', () => {
 // Add global ESC handler as backup
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   if (e.key === 'Escape') {
+    e.preventDefault();
     window.close();
   }
 });

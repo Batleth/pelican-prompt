@@ -1,4 +1,6 @@
 import { Prompt, SearchResult } from '../../types';
+import '../styles/common.css';
+import '../styles/search.css';
 
 let prompts: SearchResult[] = [];
 let selectedIndex = 0;
@@ -63,7 +65,7 @@ function showToast(message: string, duration: number = 4000) {
   if (duration > 0) {
     setTimeout(() => {
       if (toast.parentElement) {
-        toast.style.animation = 'slideIn 0.3s ease-out reverse';
+        toast.classList.add('slide-out');
         setTimeout(() => toast.remove(), 300);
       }
     }, duration);
@@ -75,33 +77,14 @@ function showDeleteConfirmation(prompt: Prompt) {
   if (!app) return;
 
   const dialog = document.createElement('div');
-  dialog.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    animation: fadeIn 0.2s ease-out;
-  `;
+  dialog.className = 'modal-overlay';
 
   const dialogContent = document.createElement('div');
-  dialogContent.style.cssText = `
-    background: white;
-    padding: 24px;
-    border-radius: 12px;
-    width: 400px;
-    max-width: 90%;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  `;
+  dialogContent.className = 'modal-dialog';
 
   dialogContent.innerHTML = `
-    <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #333;">Delete Prompt?</h3>
-    <div style="margin-bottom: 20px;">
+    <h3 class="modal-title">Delete Prompt?</h3>
+    <div class="modal-content">
       <div style="font-size: 14px; color: #666; margin-bottom: 12px;">
         Are you sure you want to delete this prompt?
       </div>
@@ -110,9 +93,9 @@ function showDeleteConfirmation(prompt: Prompt) {
         <div style="font-weight: 500; color: #333; font-size: 14px;">${prompt.title}</div>
       </div>
     </div>
-    <div style="display: flex; gap: 8px; justify-content: flex-end;">
-      <button id="delete-cancel" style="padding: 8px 16px; background: #f0f0f0; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Cancel</button>
-      <button id="delete-confirm" style="padding: 8px 16px; background: #FF3B30; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Delete</button>
+    <div class="modal-actions">
+      <button id="delete-cancel" class="btn btn-secondary">Cancel</button>
+      <button id="delete-confirm" class="btn btn-primary" style="background: #FF3B30;">Delete</button>
     </div>
   `;
 
@@ -350,60 +333,32 @@ function showParameterDialog(prompt: Prompt) {
   const app = document.getElementById('app');
   if (!app) return;
 
-  // Check current theme for modal styling
-  const isDark = document.body.classList.contains('dark');
-  const bgColor = isDark ? '#2d2d2d' : 'white';
-  const textColor = isDark ? '#e0e0e0' : '#333';
-  const inputBg = isDark ? '#3a3a3a' : 'white';
-  const inputBorder = isDark ? '#4a4a4a' : '#ddd';
-  const labelColor = isDark ? '#e0e0e0' : '#333';
-  const cancelBg = isDark ? '#3a3a3a' : '#f0f0f0';
-  const cancelColor = isDark ? '#e0e0e0' : '#333';
-  const overlayBg = isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.5)';
-
   const dialog = document.createElement('div');
-  dialog.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: ${overlayBg};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  `;
+  dialog.className = 'modal-overlay';
 
   const dialogContent = document.createElement('div');
-  dialogContent.style.cssText = `
-    background: ${bgColor};
-    padding: 24px;
-    border-radius: 12px;
-    width: 500px;
-    max-width: 90%;
-  `;
+  dialogContent.className = 'modal-dialog';
 
   let html = `
-    <h3 style="margin-bottom: 16px; font-size: 18px; color: ${textColor};">Fill in Parameters</h3>
-    <div style="margin-bottom: 16px;">
+    <h3 class="modal-title">Fill in Parameters</h3>
+    <div class="modal-content">
   `;
 
   prompt.parameters.forEach(param => {
     html += `
-      <div style="margin-bottom: 12px;">
-        <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: ${labelColor};">${param}</label>
-        <input type="text" id="param-${param}" style="width: 100%; padding: 8px; border: 1px solid ${inputBorder}; border-radius: 4px; font-size: 14px; background: ${inputBg}; color: ${textColor}; box-sizing: border-box;" />
+      <div class="form-group">
+        <label class="form-label">${param}</label>
+        <input type="text" id="param-${param}" class="form-input" />
       </div>
     `;
   });
 
   html += `
     </div>
-    <div style="display: flex; gap: 8px; justify-content: flex-end;">
-      <button id="param-cancel" style="padding: 8px 16px; background: ${cancelBg}; color: ${cancelColor}; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
-      <button id="param-copy-raw" style="padding: 8px 16px; background: #666; color: white; border: none; border-radius: 6px; cursor: pointer;">Copy with Placeholders</button>
-      <button id="param-copy" style="padding: 8px 16px; background: #007AFF; color: white; border: none; border-radius: 6px; cursor: pointer;">Copy</button>
+    <div class="modal-actions">
+      <button id="param-cancel" class="btn btn-secondary">Cancel</button>
+      <button id="param-copy-raw" class="btn btn-secondary" style="background: #666; color: white;">Copy with Placeholders</button>
+      <button id="param-copy" class="btn btn-primary">Copy</button>
     </div>
   `;
 

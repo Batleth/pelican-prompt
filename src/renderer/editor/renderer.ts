@@ -1,4 +1,6 @@
 import { Prompt, Partial } from '../../types';
+import '../styles/common.css';
+import '../styles/editor.css';
 
 let currentPrompt: Prompt | null = null;
 let autocompleteDiv: HTMLDivElement | null = null;
@@ -54,14 +56,14 @@ function showToast(type: ToastType, title: string, message: string, duration: nu
 
   const closeBtn = toast.querySelector('.toast-close');
   closeBtn?.addEventListener('click', () => {
-    toast.style.animation = 'slideIn 0.3s ease-out reverse';
+    toast.classList.add('slide-out');
     setTimeout(() => toast.remove(), 300);
   });
 
   if (duration > 0) {
     setTimeout(() => {
       if (toast.parentElement) {
-        toast.style.animation = 'slideIn 0.3s ease-out reverse';
+        toast.classList.add('slide-out');
         setTimeout(() => toast.remove(), 300);
       }
     }, duration);
@@ -94,14 +96,23 @@ function setupEventListeners() {
 
   if (cancelBtn) {
     cancelBtn.addEventListener('click', () => {
-      window.electronAPI.closeWindow();
+      if (isPartial) {
+        window.electronAPI.closeAndOpenPartials();
+      } else {
+        window.electronAPI.closeAndOpenSearch();
+      }
     });
   }
 
   // Add ESC key handler to close window
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !autocompleteDiv?.style.display) {
-      window.electronAPI.closeWindow();
+    if (e.key === 'Escape' && (!autocompleteDiv || autocompleteDiv.classList.contains('is-hidden'))) {
+      e.preventDefault();
+      if (isPartial) {
+        window.electronAPI.closeAndOpenPartials();
+      } else {
+        window.electronAPI.closeAndOpenSearch();
+      }
     }
   });
 
@@ -112,7 +123,7 @@ function setupEventListeners() {
     });
 
     contentTextarea.addEventListener('keydown', (e) => {
-      if (autocompleteDiv && autocompleteDiv.style.display !== 'none') {
+      if (autocompleteDiv && !autocompleteDiv.classList.contains('is-hidden')) {
         if (e.key === 'ArrowDown') {
           e.preventDefault();
           autocompleteSelectedIndex = Math.min(autocompleteSelectedIndex + 1, autocompletePartials.length - 1);
@@ -178,18 +189,7 @@ async function handleAutocomplete(e: Event) {
 function showAutocomplete(textarea: HTMLTextAreaElement, cursorPos: number) {
   if (!autocompleteDiv) {
     autocompleteDiv = document.createElement('div');
-    autocompleteDiv.style.cssText = `
-      position: absolute;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      max-height: 200px;
-      overflow-y: auto;
-      z-index: 1000;
-      font-family: 'Monaco', 'Menlo', monospace;
-      font-size: 12px;
-    `;
+    autocompleteDiv.className = 'autocomplete-dropdown positioned-dynamic is-hidden';
     document.body.appendChild(autocompleteDiv);
   }
   
@@ -202,9 +202,9 @@ function showAutocomplete(textarea: HTMLTextAreaElement, cursorPos: number) {
   const lines = textarea.value.substring(0, cursorPos).split('\n').length;
   const top = rect.top + (lines * lineHeight);
   
-  autocompleteDiv.style.left = `${rect.left + 20}px`;
-  autocompleteDiv.style.top = `${top}px`;
-  autocompleteDiv.style.display = 'block';
+  document.documentElement.style.setProperty('--dynamic-left', `${rect.left + 20}px`);
+  document.documentElement.style.setProperty('--dynamic-top', `${top}px`);
+  autocompleteDiv.classList.remove('is-hidden');
   
   renderAutocomplete();
 }
@@ -214,10 +214,10 @@ function renderAutocomplete() {
   
   const items = autocompletePartials.map((partial, index) => {
     const preview = partial.content.substring(0, 60).replace(/\n/g, ' ');
-    const selected = index === autocompleteSelectedIndex ? 'background: #E3F2FD;' : '';
+    const selectedClass = index === autocompleteSelectedIndex ? 'is-active' : '';
     return `
-      <div style="padding: 6px 10px; cursor: pointer; ${selected}" data-index="${index}">
-        <div style="font-weight: 500; color: #333;">${partial.path}</div>
+      <div class="autocomplete-item ${selectedClass}" data-index="${index}">
+        <div>${partial.path}</div>
         <div style="font-size: 10px; color: #666; margin-top: 2px;">${preview}...</div>
       </div>
     `;
@@ -264,7 +264,7 @@ function insertAutocomplete() {
 
 function hideAutocomplete() {
   if (autocompleteDiv) {
-    autocompleteDiv.style.display = 'none';
+    autocompleteDiv.classList.add('is-hidden');
   }
 }
 
@@ -284,9 +284,9 @@ function updateParameterInfo() {
         ${parameters.map(p => `<li>${p}</li>`).join('')}
       </ul>
     `;
-    paramInfo.style.display = 'block';
+    paramInfo.classList.remove('is-hidden');
   } else {
-    paramInfo.style.display = 'none';
+    paramInfo.classList.add('is-hidden');
   }
 }
 

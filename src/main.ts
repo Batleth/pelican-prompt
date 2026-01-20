@@ -473,9 +473,25 @@ Best regards,
     createPartialsWindow();
   });
 
+  ipcMain.handle('open-search-window', () => {
+    createSearchWindow();
+  });
+
   ipcMain.handle('close-window', (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     window?.close();
+  });
+
+  ipcMain.handle('close-and-open-search', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    window?.close();
+    createSearchWindow();
+  });
+
+  ipcMain.handle('close-and-open-partials', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    window?.close();
+    createPartialsWindow();
   });
 
   ipcMain.handle('hide-window', (event) => {

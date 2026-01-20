@@ -22,10 +22,16 @@
     "src/services/promptService.ts",
     "src/services/partialService.ts",
     "src/services/searchService.ts",
+    "src/renderer/styles/common.css",
+    "src/renderer/styles/editor.css",
+    "src/renderer/styles/search.css",
+    "src/renderer/styles/partials.css",
     "src/renderer/search/index.html",
     "src/renderer/search/renderer.ts",
     "src/renderer/editor/index.html",
-    "src/renderer/editor/renderer.ts"
+    "src/renderer/editor/renderer.ts",
+    "src/renderer/partials/index.html",
+    "src/renderer/partials/renderer.ts"
   ],
   "naming_conventions": {
     "interfaces": "PascalCase (e.g., Prompt, SearchResult, Partial)",
@@ -33,9 +39,10 @@
     "functions": "camelCase (e.g., reloadFromDisk, applyTheme)",
     "variables": "camelCase",
     "folders": "kebab-case (renderer/search, renderer/editor) or camelCase (services/)",
-    "prompt_files": "Title_With_Underscores.md; tags composed via hyphenated folder segments"
+    "prompt_files": "Title_With_Underscores.md; tags composed via hyphenated folder segments",
+    "css_classes": "BEM-inspired: block (.btn, .modal-overlay), element (.result-title), modifier (.btn-primary); utility classes with 'is-' prefix (.is-hidden, .is-active)"
   },
-  "architecture_pattern": "Electron multi-process with service-oriented architecture: Main process orchestrator + Renderer views + Service layer (TagService, PromptService, PartialService, SearchService) + PromptManager facade",
+  "architecture_pattern": "Electron multi-process with service-oriented architecture and modular CSS: Main process orchestrator + Renderer views (with external stylesheets) + Service layer (TagService, PromptService, PartialService, SearchService) + PromptManager facade. CSS is organized into common.css (shared styles), and window-specific stylesheets (editor.css, search.css, partials.css).",
   "glossary": {
     "Prompt": "Markdown-based content unit with tag, title, content, and parameters.",
     "Partial": "Reusable snippet referenced in prompts; stored separately and browsed/edited in the Partials UI.",
@@ -51,6 +58,7 @@
     "TagService": "Shared service for tag/path validation, depth checking, folder management; used by both Prompt and Partial services.",
     "PromptService": "Service layer handling prompt CRUD operations, file parsing, and metadata extraction.",
     "PartialService": "Service layer managing partial CRUD, dot-notation paths, and content resolution.",
-    "SearchService": "Service layer managing lunr index, search queries, and tag filtering with wildcards."
+    "SearchService": "Service layer managing lunr index, search queries, and tag filtering with wildcards.",
+    "CSS Architecture": "Modular external stylesheets: common.css (320 lines, shared), editor.css (148 lines), search.css (308 lines), partials.css (272 lines). Uses BEM-inspired naming, utility classes (.is-hidden, .is-visible, .slide-out), and CSS custom properties (--dynamic-left, --dynamic-top) for dynamic positioning without inline styles."
   }
 }

@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
   openEditor: (prompt?: Prompt) => ipcRenderer.invoke('open-editor', prompt),
   closeWindow: () => ipcRenderer.invoke('close-window'),
+  closeAndOpenSearch: () => ipcRenderer.invoke('close-and-open-search'),
+  closeAndOpenPartials: () => ipcRenderer.invoke('close-and-open-partials'),
   hideWindow: () => ipcRenderer.invoke('hide-window'),
   onLoadPrompt: (callback: (prompt: Prompt) => void) => {
     ipcRenderer.on('load-prompt', (_event, prompt) => callback(prompt));
@@ -57,6 +59,8 @@ declare global {
       copyToClipboard: (text: string) => Promise<boolean>;
       openEditor: (prompt?: Prompt) => Promise<void>;
       closeWindow: () => Promise<void>;
+      closeAndOpenSearch: () => Promise<void>;
+      closeAndOpenPartials: () => Promise<void>;
       hideWindow: () => Promise<void>;
       onLoadPrompt: (callback: (prompt: Prompt) => void) => void;
       onReloadPrompts: (callback: () => void) => void;
