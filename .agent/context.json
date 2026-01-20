@@ -1,0 +1,45 @@
+{
+  "tech_stack": {
+    "languages": [
+      { "name": "TypeScript", "version": "^5.9.3" }
+    ],
+    "frameworks": [
+      { "name": "Electron", "version": "40.0.0" },
+      { "name": "Electron Forge", "version": "^7.11.1" },
+      { "name": "Webpack", "version": "^5.104.1" }
+    ],
+    "libraries": [
+      { "name": "lunr", "version": "^2.3.9" },
+      { "name": "chokidar", "version": "^5.0.0" },
+      { "name": "electron-store", "version": "^11.0.2" }
+    ]
+  },
+  "entry_points": [
+    "src/main.ts",
+    "src/preload.ts",
+    "src/renderer/search/index.html",
+    "src/renderer/search/renderer.ts",
+    "src/renderer/editor/index.html",
+    "src/renderer/editor/renderer.ts"
+  ],
+  "naming_conventions": {
+    "interfaces": "PascalCase (e.g., Prompt, SearchResult, Partial)",
+    "functions": "camelCase (e.g., reloadFromDisk, applyTheme)",
+    "variables": "camelCase",
+    "folders": "kebab-case (renderer/search, renderer/editor)",
+    "prompt_files": "Title_With_Underscores.md; tags composed via hyphenated folder segments"
+  },
+  "architecture_pattern": "Electron multi-process, monolithic layered (main-process orchestrator + renderer views + service/data layer)",
+  "glossary": {
+    "Prompt": "Markdown-based content unit with tag, title, content, and parameters.",
+    "Partial": "Reusable snippet referenced in prompts; stored separately and browsed/edited in the Partials UI.",
+    "Tag": "Hierarchical categorization derived from nested folders (e.g., com-mail-formal).",
+    "Parameter": "Dynamic placeholder in content using [UPPER_CASE_WITH_UNDERSCORES].",
+    "SearchIndex": "lunr-built index over title/tag/content for ranked queries.",
+    "Renderer": "Electron process that renders a specific window's UI (search/editor/partials).",
+    "Main Process": "Electron process managing windows, IPC, and persistence.",
+    "IPC": "Inter-process communication between renderer and main via handlers (ipcMain.handle).",
+    "Electron Store": "Key-value persistence (theme, prompts folder) across sessions.",
+    "Prompts Folder": "User-chosen directory containing prompts/ and its hierarchy"
+  }
+}
