@@ -2,6 +2,10 @@ import { Prompt, Partial } from '../../types';
 import '../styles/design-system.css';
 import '../styles/editor.css';
 
+// Platform-aware modifier key
+const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+const modKey = isMac ? 'Cmd' : 'Ctrl';
+
 let currentPrompt: Prompt | null = null;
 let autocompleteDiv: HTMLDivElement | null = null;
 let autocompleteSelectedIndex = 0;
@@ -424,7 +428,7 @@ function renderFooter() {
   footer.innerHTML = `
     <div class="footer-left">
       <div class="keyboard-hint">
-        <span class="kbd">Cmd+S</span> Save • <span class="kbd">Esc</span> Cancel
+        <span class="kbd">${modKey}+S</span> Save • <span class="kbd">Esc</span> Cancel
       </div>
       <div class="footer-hint">
         Use <span class="hint-param">[PARAM_NAME]</span> for dynamic parameters • Use <span class="hint-partial">{{> partial.path}}</span> to include partials

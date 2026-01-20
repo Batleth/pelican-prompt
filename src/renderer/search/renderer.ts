@@ -2,6 +2,10 @@ import { Prompt, SearchResult } from '../../types';
 import '../styles/design-system.css';
 import '../styles/search.css';
 
+// Platform-aware modifier key
+const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+const modKey = isMac ? 'Cmd' : 'Ctrl';
+
 let prompts: SearchResult[] = [];
 let selectedIndex = 0;
 let hasPromptsFolder = false;
@@ -499,7 +503,7 @@ function render() {
     <div class="results" id="results-container"></div>
     <div class="footer">
       <div class="keyboard-hint">
-        ↑↓ Navigate • Enter Select • Cmd+N New • Cmd+E Edit • Cmd+R Delete • Cmd+P Partials • Esc Close
+        ↑↓ Navigate • Enter Select • ${modKey}+N New • ${modKey}+E Edit • ${modKey}+R Delete • ${modKey}+P Partials • Esc Close
       </div>
       <div class="badge-legend">
         <div class="legend-item">
@@ -528,7 +532,7 @@ function renderResults() {
     html = `
       <div class="empty-state">
         <h3>No prompts found</h3>
-        <p>Press Cmd+N to create your first prompt</p>
+        <p>Press ${modKey}+N to create your first prompt</p>
       </div>
     `;
   } else {
