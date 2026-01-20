@@ -1,0 +1,1 @@
+Begin with a formal greeting such as "Dear [Title] [Last Name]," or "Dear [Full Name]," appropriate for business correspondence.

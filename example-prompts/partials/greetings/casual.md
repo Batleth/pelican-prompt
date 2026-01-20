@@ -1,0 +1,1 @@
+Begin with a casual greeting such as "Hi [First Name]," or "Hello [Name]," suitable for familiar colleagues.

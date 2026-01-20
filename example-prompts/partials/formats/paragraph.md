@@ -1,0 +1,1 @@
+Format in flowing paragraphs. Use 3-5 sentences per paragraph with clear topic sentences. Ensure smooth transitions between paragraphs.

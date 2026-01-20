@@ -2,18 +2,23 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as chokidar from 'chokidar';
 import lunr from 'lunr';
-import { Prompt, SearchResult } from './types';
+import { Prompt, SearchResult, Partial } from './types';
 
 export class PromptManager {
   private promptsFolder: string;
+  private partialsFolder: string;
   private prompts: Map<string, Prompt> = new Map();
+  private partials: Map<string, { content: string; filePath: string }> = new Map();
   private searchIndex: lunr.Index | null = null;
   private watcher: chokidar.FSWatcher | null = null;
+  private partialsWatcher: chokidar.FSWatcher | null = null;
   private readonly MAX_TAG_DEPTH = 5;
 
   constructor(baseFolder: string) {
     this.promptsFolder = path.join(baseFolder, 'prompts');
+    this.partialsFolder = path.join(baseFolder, 'partials');
     this.loadPrompts();
+    this.loadPartials();
     this.initializeWatcher();
   }
 
@@ -28,6 +33,18 @@ export class PromptManager {
       .on('add', (filePath) => this.handleFileChange(filePath))
       .on('change', (filePath) => this.handleFileChange(filePath))
       .on('unlink', (filePath) => this.handleFileRemove(filePath));
+
+    // Watch partials folder
+    this.partialsWatcher = chokidar.watch(`${this.partialsFolder}/**/*.md`, {
+      persistent: true,
+      ignoreInitial: true,
+      depth: this.MAX_TAG_DEPTH
+    });
+
+    this.partialsWatcher
+      .on('add', (filePath) => this.handlePartialChange(filePath))
+      .on('change', (filePath) => this.handlePartialChange(filePath))
+      .on('unlink', (filePath) => this.handlePartialRemove(filePath));
   }
 
   private handleFileChange(filePath: string): void {
@@ -66,13 +83,24 @@ export class PromptManager {
         }
       }
 
+      // Extract partials from content (e.g., {{> path.to.partial}})
+      const partialRegex = /\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
+      const partials: string[] = [];
+      
+      while ((match = partialRegex.exec(content)) !== null) {
+        if (!partials.includes(match[1])) {
+          partials.push(match[1]);
+        }
+      }
+
       return {
         id: filePath,
         tag,
         title,
         content,
         filePath,
-        parameters
+        parameters,
+        partials
       };
     } catch (error) {
       console.error(`Error parsing prompt file ${filePath}:`, error);
@@ -113,6 +141,90 @@ export class PromptManager {
         }
       }
     }
+  }
+
+  private loadPartials(): void {
+    try {
+      if (!fs.existsSync(this.partialsFolder)) {
+        fs.mkdirSync(this.partialsFolder, { recursive: true });
+      }
+
+      this.partials.clear();
+      this.loadPartialsRecursive(this.partialsFolder, 0);
+    } catch (error) {
+      console.error('Error loading partials:', error);
+    }
+  }
+
+  private loadPartialsRecursive(dir: string, depth: number): void {
+    if (depth > this.MAX_TAG_DEPTH) {
+      return;
+    }
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      
+      if (entry.isDirectory()) {
+        this.loadPartialsRecursive(fullPath, depth + 1);
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        try {
+          const content = fs.readFileSync(fullPath, 'utf-8').trim();
+          
+          // Skip empty partials
+          if (!content) {
+            console.warn(`Skipping empty partial: ${fullPath}`);
+            continue;
+          }
+          
+          // Validate partials don't contain other partials
+          if (/\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g.test(content)) {
+            console.error(`Partial cannot contain other partials: ${fullPath}`);
+            continue;
+          }
+          
+          // Convert file path to dot notation
+          const relativePath = path.relative(this.partialsFolder, fullPath);
+          const pathWithoutExt = relativePath.replace(/\.md$/, '');
+          const dotPath = pathWithoutExt.split(path.sep).join('.');
+          
+          this.partials.set(dotPath, { path: dotPath, content, filePath: fullPath });
+        } catch (error) {
+          console.error(`Error loading partial ${fullPath}:`, error);
+        }
+      }
+    }
+  }
+
+  private handlePartialChange(filePath: string): void {
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8').trim();
+      
+      if (!content || /\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g.test(content)) {
+        // Remove invalid partial
+        const relativePath = path.relative(this.partialsFolder, filePath);
+        const pathWithoutExt = relativePath.replace(/\.md$/, '');
+        const dotPath = pathWithoutExt.split(path.sep).join('.');
+        this.partials.delete(dotPath);
+        return;
+      }
+      
+      const relativePath = path.relative(this.partialsFolder, filePath);
+      const pathWithoutExt = relativePath.replace(/\.md$/, '');
+      const dotPath = pathWithoutExt.split(path.sep).join('.');
+      
+      this.partials.set(dotPath, { path: dotPath, content, filePath });
+    } catch (error) {
+      console.error(`Error handling partial change ${filePath}:`, error);
+    }
+  }
+
+  private handlePartialRemove(filePath: string): void {
+    const relativePath = path.relative(this.partialsFolder, filePath);
+    const pathWithoutExt = relativePath.replace(/\.md$/, '');
+    const dotPath = pathWithoutExt.split(path.sep).join('.');
+    this.partials.delete(dotPath);
   }
 
   private rebuildIndex(): void {
@@ -182,9 +294,10 @@ export class PromptManager {
           p.tag.toLowerCase().startsWith(prefix)
         );
       } else {
-        // Exact match
+        // Exact or prefix match: tag:com matches com, com-mail, com-meeting, etc.
         filteredPrompts = filteredPrompts.filter(p => 
-          p.tag.toLowerCase() === tagFilter
+          p.tag.toLowerCase() === tagFilter || 
+          p.tag.toLowerCase().startsWith(tagFilter + '-')
         );
       }
       
@@ -286,10 +399,106 @@ export class PromptManager {
     }
   }
 
+  // Partials API methods
+  public getAllPartials(): Partial[] {
+    const partials: Partial[] = [];
+    for (const [dotPath, data] of this.partials.entries()) {
+      partials.push({
+        path: dotPath,
+        content: data.content,
+        filePath: data.filePath
+      });
+    }
+    return partials.sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  public getPartial(dotPath: string): { content: string; filePath: string } | null {
+    return this.partials.get(dotPath) || null;
+  }
+
+  public searchPartials(query: string): Partial[] {
+    const lowerQuery = query.toLowerCase();
+    const partials: Partial[] = [];
+    
+    for (const [dotPath, data] of this.partials.entries()) {
+      if (dotPath.toLowerCase().includes(lowerQuery) || 
+          data.content.toLowerCase().includes(lowerQuery)) {
+        partials.push({
+          path: dotPath,
+          content: data.content,
+          filePath: data.filePath
+        });
+      }
+    }
+    
+    return partials.sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  public validatePartials(partialRefs: string[]): string[] {
+    const missing: string[] = [];
+    for (const ref of partialRefs) {
+      if (!this.partials.has(ref)) {
+        missing.push(ref);
+      }
+    }
+    return missing;
+  }
+
+  public validatePartialContent(content: string): { valid: boolean; error?: string } {
+    const trimmed = content.trim();
+    
+    if (!trimmed) {
+      return { valid: false, error: 'Partial content cannot be empty' };
+    }
+    
+    if (/\{\{>\s*([a-zA-Z0-9_.]+)\s*\}\}/g.test(trimmed)) {
+      return { valid: false, error: 'Partials cannot contain other partials ({{> }} syntax not allowed)' };
+    }
+    
+    return { valid: true };
+  }
+
+  public validatePartialPath(dotPath: string): { valid: boolean; error?: string } {
+    const segments = dotPath.split('.');
+    
+    if (segments.length === 0 || segments.some(s => !s)) {
+      return { valid: false, error: 'Path cannot have empty segments' };
+    }
+    
+    if (segments.length > this.MAX_TAG_DEPTH) {
+      return { valid: false, error: `Path cannot exceed ${this.MAX_TAG_DEPTH} levels deep` };
+    }
+    
+    for (const segment of segments) {
+      if (!/^[a-zA-Z0-9_-]+$/.test(segment)) {
+        return { valid: false, error: 'Path segments can only contain letters, numbers, hyphens, and underscores' };
+      }
+    }
+    
+    return { valid: true };
+  }
+
+  public resolvePartials(content: string): string {
+    const partialRegex = /\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
+    
+    return content.replace(partialRegex, (match, dotPath) => {
+      const partial = this.partials.get(dotPath);
+      if (partial) {
+        return partial.content;
+      } else {
+        return `MISSING PARTIAL ${dotPath}`;
+      }
+    });
+  }
+
   public destroy(): void {
     if (this.watcher) {
       this.watcher.close();
       this.watcher = null;
+    }
+    if (this.partialsWatcher) {
+      this.partialsWatcher.close();
+      this.partialsWatcher = null;
     }
   }
 }

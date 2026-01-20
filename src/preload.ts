@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { Prompt, SearchResult, ParameterValue } from './types';
+import { Prompt, SearchResult, ParameterValue, Partial } from './types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: () => ipcRenderer.invoke('select-folder'),
@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-prompt', tag, title, content, existingPath),
   getPrompt: (filePath: string) => ipcRenderer.invoke('get-prompt', filePath),
   copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
-  openEditor: (promptPath?: string) => ipcRenderer.invoke('open-editor', promptPath),
+  openEditor: (prompt?: Prompt) => ipcRenderer.invoke('open-editor', prompt),
   closeWindow: () => ipcRenderer.invoke('close-window'),
   hideWindow: () => ipcRenderer.invoke('hide-window'),
   onLoadPrompt: (callback: (prompt: Prompt) => void) => {
@@ -19,7 +19,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   onReloadPrompts: (callback: () => void) => {
     ipcRenderer.on('reload-prompts', () => callback());
-  }
+  },
+  // Partials APIs
+  getAllPartials: () => ipcRenderer.invoke('get-all-partials'),
+  searchPartials: (query: string) => ipcRenderer.invoke('search-partials', query),
+  getPartial: (dotPath: string) => ipcRenderer.invoke('get-partial', dotPath),
+  validatePartials: (refs: string[]) => ipcRenderer.invoke('validate-partials', refs),
+  validatePartialContent: (content: string) => ipcRenderer.invoke('validate-partial-content', content),
+  validatePartialPath: (dotPath: string) => ipcRenderer.invoke('validate-partial-path', dotPath),
+  resolvePartials: (content: string) => ipcRenderer.invoke('resolve-partials', content),
+  openPartialsBrowser: () => ipcRenderer.invoke('open-partials-browser')
 });
 
 declare global {
@@ -33,11 +42,20 @@ declare global {
       savePrompt: (tag: string, title: string, content: string, existingPath?: string) => Promise<string>;
       getPrompt: (filePath: string) => Promise<Prompt | null>;
       copyToClipboard: (text: string) => Promise<boolean>;
-      openEditor: (promptPath?: string) => Promise<void>;
+      openEditor: (prompt?: Prompt) => Promise<void>;
       closeWindow: () => Promise<void>;
       hideWindow: () => Promise<void>;
       onLoadPrompt: (callback: (prompt: Prompt) => void) => void;
       onReloadPrompts: (callback: () => void) => void;
+      // Partials APIs
+      getAllPartials: () => Promise<Partial[]>;
+      searchPartials: (query: string) => Promise<Partial[]>;
+      getPartial: (dotPath: string) => Promise<Partial | null>;
+      validatePartials: (refs: string[]) => Promise<{ valid: boolean; missing: string[] }>;
+      validatePartialContent: (content: string) => Promise<{ valid: boolean; error?: string }>;
+      validatePartialPath: (dotPath: string) => Promise<{ valid: boolean; error?: string }>;
+      resolvePartials: (content: string) => Promise<string>;
+      openPartialsBrowser: () => Promise<void>;
     };
   }
 }

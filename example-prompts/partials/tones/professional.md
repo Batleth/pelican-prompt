@@ -1,0 +1,1 @@
+Use a professional and formal tone. Address the recipient respectfully, use complete sentences, and maintain business etiquette throughout.

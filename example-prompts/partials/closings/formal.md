@@ -1,0 +1,1 @@
+End with a formal closing such as "Sincerely," "Best regards," or "Respectfully," followed by the sender's full name and title.

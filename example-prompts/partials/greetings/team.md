@@ -1,0 +1,1 @@
+Begin with a team greeting such as "Hi team," "Hello everyone," or "Dear colleagues," suitable for group communications.

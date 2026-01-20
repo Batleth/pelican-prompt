@@ -1,6 +1,9 @@
-import { Prompt } from '../../types';
+import { Prompt, Partial } from '../../types';
 
 let currentPrompt: Prompt | null = null;
+let autocompleteDiv: HTMLDivElement | null = null;
+let autocompleteSelectedIndex = 0;
+let autocompletePartials: Partial[] = [];
 
 function initialize() {
   render();
@@ -30,9 +33,37 @@ function setupEventListeners() {
     });
   }
 
+  // Add ESC key handler to close window
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !autocompleteDiv?.style.display) {
+      window.electronAPI.closeWindow();
+    }
+  });
+
   if (contentTextarea) {
-    contentTextarea.addEventListener('input', () => {
+    contentTextarea.addEventListener('input', (e) => {
       updateParameterInfo();
+      handleAutocomplete(e);
+    });
+
+    contentTextarea.addEventListener('keydown', (e) => {
+      if (autocompleteDiv && autocompleteDiv.style.display !== 'none') {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          autocompleteSelectedIndex = Math.min(autocompleteSelectedIndex + 1, autocompletePartials.length - 1);
+          renderAutocomplete();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          autocompleteSelectedIndex = Math.max(autocompleteSelectedIndex - 1, 0);
+          renderAutocomplete();
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          insertAutocomplete();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          hideAutocomplete();
+        }
+      }
     });
   }
 }
@@ -49,6 +80,127 @@ function extractParameters(content: string): string[] {
   }
   
   return parameters;
+}
+
+async function handleAutocomplete(e: Event) {
+  const textarea = e.target as HTMLTextAreaElement;
+  const cursorPos = textarea.selectionStart;
+  const textBeforeCursor = textarea.value.substring(0, cursorPos);
+  
+  // Check if we're typing {{>
+  const match = textBeforeCursor.match(/\{\{>\s*([a-zA-Z0-9_.-]*)$/);
+  
+  if (match) {
+    const prefix = match[1];
+    const allPartials = await window.electronAPI.getAllPartials();
+    
+    // Filter partials by prefix
+    autocompletePartials = allPartials.filter(p => 
+      p.path.toLowerCase().startsWith(prefix.toLowerCase())
+    ).slice(0, 20); // Max 20 suggestions
+    
+    if (autocompletePartials.length > 0) {
+      autocompleteSelectedIndex = 0;
+      showAutocomplete(textarea, cursorPos);
+    } else {
+      hideAutocomplete();
+    }
+  } else {
+    hideAutocomplete();
+  }
+}
+
+function showAutocomplete(textarea: HTMLTextAreaElement, cursorPos: number) {
+  if (!autocompleteDiv) {
+    autocompleteDiv = document.createElement('div');
+    autocompleteDiv.style.cssText = `
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+    `;
+    document.body.appendChild(autocompleteDiv);
+  }
+  
+  // Position below cursor
+  const rect = textarea.getBoundingClientRect();
+  const textareaStyles = window.getComputedStyle(textarea);
+  const lineHeight = parseInt(textareaStyles.lineHeight || '20');
+  
+  // Rough estimate of cursor position (this is approximate)
+  const lines = textarea.value.substring(0, cursorPos).split('\n').length;
+  const top = rect.top + (lines * lineHeight);
+  
+  autocompleteDiv.style.left = `${rect.left + 20}px`;
+  autocompleteDiv.style.top = `${top}px`;
+  autocompleteDiv.style.display = 'block';
+  
+  renderAutocomplete();
+}
+
+function renderAutocomplete() {
+  if (!autocompleteDiv) return;
+  
+  const items = autocompletePartials.map((partial, index) => {
+    const preview = partial.content.substring(0, 60).replace(/\n/g, ' ');
+    const selected = index === autocompleteSelectedIndex ? 'background: #E3F2FD;' : '';
+    return `
+      <div style="padding: 6px 10px; cursor: pointer; ${selected}" data-index="${index}">
+        <div style="font-weight: 500; color: #333;">${partial.path}</div>
+        <div style="font-size: 10px; color: #666; margin-top: 2px;">${preview}...</div>
+      </div>
+    `;
+  }).join('');
+  
+  const total = autocompletePartials.length;
+  const more = total > 20 ? `<div style="padding: 6px 10px; color: #999; font-size: 11px;">... and more</div>` : '';
+  
+  autocompleteDiv.innerHTML = items + more;
+  
+  // Add click handlers
+  autocompleteDiv.querySelectorAll('[data-index]').forEach(el => {
+    el.addEventListener('click', () => {
+      const index = parseInt((el as HTMLElement).dataset.index || '0');
+      autocompleteSelectedIndex = index;
+      insertAutocomplete();
+    });
+  });
+}
+
+function insertAutocomplete() {
+  const textarea = document.getElementById('content-textarea') as HTMLTextAreaElement;
+  if (!textarea || autocompletePartials.length === 0) return;
+  
+  const partial = autocompletePartials[autocompleteSelectedIndex];
+  const cursorPos = textarea.selectionStart;
+  const textBeforeCursor = textarea.value.substring(0, cursorPos);
+  const textAfterCursor = textarea.value.substring(cursorPos);
+  
+  // Find the {{> and replace up to cursor
+  const match = textBeforeCursor.match(/\{\{>\s*([a-zA-Z0-9_.-]*)$/);
+  if (match) {
+    const startPos = cursorPos - match[0].length;
+    const newText = textBeforeCursor.substring(0, startPos) + `{{> ${partial.path}}}` + textAfterCursor;
+    textarea.value = newText;
+    textarea.selectionStart = textarea.selectionEnd = startPos + `{{> ${partial.path}}}`.length;
+    
+    // Trigger input event to update parameter info
+    textarea.dispatchEvent(new Event('input'));
+  }
+  
+  hideAutocomplete();
+}
+
+function hideAutocomplete() {
+  if (autocompleteDiv) {
+    autocompleteDiv.style.display = 'none';
+  }
 }
 
 function updateParameterInfo() {
@@ -145,8 +297,9 @@ function render() {
       <label for="content-textarea">Content</label>
       <textarea id="content-textarea" placeholder="Enter your prompt here...
 
-You can use parameters like [PARAM_NAME] that will be replaced when using the prompt.">${content}</textarea>
-      <div class="hint">Use [PARAM_NAME] syntax for dynamic parameters (must be uppercase with underscores)</div>
+You can use parameters like [PARAM_NAME] that will be replaced when using the prompt.
+You can also reference partials like {{> formats.email}} to reuse common content.">${content}</textarea>
+      <div class="hint">Use [PARAM_NAME] for dynamic parameters (uppercase with underscores) • Use {{> partial.path}} to include partials</div>
     </div>
   `;
 

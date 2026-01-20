@@ -1,0 +1,1 @@
+End with a call to action requesting confirmation: "Please let me know your availability" or "Looking forward to your confirmation" followed by an appropriate closing.

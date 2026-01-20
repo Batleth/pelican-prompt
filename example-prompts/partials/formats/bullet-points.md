@@ -1,0 +1,1 @@
+Use bullet points for clarity and scannability. Each point should be concise, parallel in structure, and focused on a single idea.

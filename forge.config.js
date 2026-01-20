@@ -64,6 +64,14 @@ module.exports = {
               preload: {
                 js: './src/preload.ts'
               }
+            },
+            {
+              html: './src/renderer/partials/index.html',
+              js: './src/renderer/partials/renderer.ts',
+              name: 'partials_window',
+              preload: {
+                js: './src/preload.ts'
+              }
             }
           ]
         }

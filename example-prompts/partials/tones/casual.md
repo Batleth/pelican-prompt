@@ -1,0 +1,1 @@
+Use a casual and relaxed tone. Keep it light and conversational, suitable for communication with close colleagues or team members.

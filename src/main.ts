@@ -13,6 +13,7 @@ if (require('electron-squirrel-startup')) {
 const store = new Store();
 let searchWindow: BrowserWindow | null = null;
 let editorWindow: BrowserWindow | null = null;
+let partialsWindow: BrowserWindow | null = null;
 let promptManager: PromptManager | null = null;
 
 function migrateUserData() {
@@ -33,7 +34,6 @@ function migrateUserData() {
         }
         // Skip directories like Cache
       });
-      console.log('Migrated user data from PromptLib to Pelican Prompt');
     } catch (error) {
       console.error('Migration error:', error);
     }
@@ -121,6 +121,37 @@ const createEditorWindow = (prompt?: Prompt): void => {
   });
 };
 
+const createPartialsWindow = (): void => {
+  if (partialsWindow && !partialsWindow.isDestroyed()) {
+    partialsWindow.show();
+    partialsWindow.focus();
+    return;
+  }
+
+  partialsWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    show: false,
+    webPreferences: {
+      preload: PARTIALS_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  if (PARTIALS_WINDOW_WEBPACK_ENTRY) {
+    partialsWindow.loadURL(PARTIALS_WINDOW_WEBPACK_ENTRY);
+  }
+
+  partialsWindow.once('ready-to-show', () => {
+    partialsWindow?.show();
+  });
+
+  partialsWindow.on('closed', () => {
+    partialsWindow = null;
+  });
+};
+
 app.whenReady().then(() => {
   migrateUserData();
   
@@ -133,13 +164,9 @@ app.whenReady().then(() => {
   }
   
   // Register global shortcut
-  const ret = globalShortcut.register('CommandOrControl+K', () => {
+  globalShortcut.register('CommandOrControl+K', () => {
     createSearchWindow();
   });
-
-  if (!ret) {
-    console.log('Registration failed');
-  }
 
   // Check if prompts folder is set
   const promptsFolder = store.get('promptsFolder') as string | undefined;
@@ -218,20 +245,67 @@ app.whenReady().then(() => {
     return true;
   });
 
-  ipcMain.handle('open-editor', (_event, promptPath?: string) => {
-    let prompt: Prompt | undefined;
-    if (promptPath && promptManager) {
-      const p = promptManager.getPrompt(promptPath);
-      if (p) {
-        prompt = p;
-      }
-    }
+  ipcMain.handle('open-editor', (_event, prompt?: Prompt) => {
     createEditorWindow(prompt);
     
     // Hide search window
     if (searchWindow && !searchWindow.isDestroyed()) {
       searchWindow.hide();
     }
+  });
+
+  // Partials IPC handlers
+  ipcMain.handle('get-all-partials', () => {
+    if (!promptManager) {
+      return [];
+    }
+    return promptManager.getAllPartials();
+  });
+
+  ipcMain.handle('search-partials', (_event, query: string) => {
+    if (!promptManager) {
+      return [];
+    }
+    return promptManager.searchPartials(query);
+  });
+
+  ipcMain.handle('get-partial', (_event, dotPath: string) => {
+    if (!promptManager) {
+      return null;
+    }
+    return promptManager.getPartial(dotPath);
+  });
+
+  ipcMain.handle('validate-partials', (_event, partialRefs: string[]) => {
+    if (!promptManager) {
+      return [];
+    }
+    return promptManager.validatePartials(partialRefs);
+  });
+
+  ipcMain.handle('validate-partial-content', (_event, content: string) => {
+    if (!promptManager) {
+      return { valid: false, error: 'Prompt manager not initialized' };
+    }
+    return promptManager.validatePartialContent(content);
+  });
+
+  ipcMain.handle('validate-partial-path', (_event, dotPath: string) => {
+    if (!promptManager) {
+      return { valid: false, error: 'Prompt manager not initialized' };
+    }
+    return promptManager.validatePartialPath(dotPath);
+  });
+
+  ipcMain.handle('resolve-partials', (_event, content: string) => {
+    if (!promptManager) {
+      return content;
+    }
+    return promptManager.resolvePartials(content);
+  });
+
+  ipcMain.handle('open-partials-browser', () => {
+    createPartialsWindow();
   });
 
   ipcMain.handle('close-window', (event) => {
@@ -272,3 +346,5 @@ declare const SEARCH_WINDOW_WEBPACK_ENTRY: string;
 declare const SEARCH_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const EDITOR_WINDOW_WEBPACK_ENTRY: string;
 declare const EDITOR_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+declare const PARTIALS_WINDOW_WEBPACK_ENTRY: string;
+declare const PARTIALS_WINDOW_PRELOAD_WEBPACK_ENTRY: string;

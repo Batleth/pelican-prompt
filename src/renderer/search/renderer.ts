@@ -35,15 +35,13 @@ async function loadPrompts(query: string = '') {
 
 async function updateFolderDisplay() {
   const folderPath = await window.electronAPI.getPromptsFolder();
-  const folderPathElement = document.getElementById('folder-path');
+  const openFolderBtn = document.getElementById('open-folder-btn');
   
-  if (folderPathElement) {
+  if (openFolderBtn) {
     if (folderPath) {
-      folderPathElement.textContent = folderPath;
-      folderPathElement.title = folderPath;
+      openFolderBtn.title = folderPath;
     } else {
-      folderPathElement.textContent = 'No folder selected - Click "Change Folder" to get started';
-      folderPathElement.title = '';
+      openFolderBtn.title = 'No folder selected';
     }
   }
 }
@@ -104,8 +102,11 @@ function setupEventListeners() {
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
         e.preventDefault();
         if (prompts.length > 0) {
-          window.electronAPI.openEditor(prompts[selectedIndex].prompt.filePath);
+          window.electronAPI.openEditor(prompts[selectedIndex].prompt);
         }
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+        e.preventDefault();
+        window.electronAPI.openPartialsBrowser();
       }
     });
   }
@@ -135,8 +136,9 @@ async function selectPrompt(prompt: Prompt) {
     // Show parameter dialog
     showParameterDialog(prompt);
   } else {
-    // Copy directly to clipboard
-    await window.electronAPI.copyToClipboard(prompt.content);
+    // Copy directly to clipboard (resolve partials first)
+    const resolved = await window.electronAPI.resolvePartials(prompt.content);
+    await window.electronAPI.copyToClipboard(resolved);
     window.electronAPI.hideWindow();
   }
 }
@@ -197,21 +199,22 @@ function showParameterDialog(prompt: Prompt) {
 
   // Copy handler function (Copy with Placeholders behavior)
   const handleCopy = async () => {
-    let content = prompt.content;
+    // First resolve partials
+    let content = await window.electronAPI.resolvePartials(prompt.content);
     const params: string[] = [];
     
     prompt.parameters.forEach(param => {
       const input = document.getElementById(`param-${param}`) as HTMLInputElement;
       const value = input?.value || '';
       if (value) {
-        params.push(`${param}=${value}`);
+        params.push(`[${param}] = ${value}`);
       } else {
-        params.push(`${param}=`);
+        params.push(`[${param}] = `);
       }
     });
 
     if (params.length > 0) {
-      content += '\n\n' + params.join('\n');
+      content += '\n\nReplace the following parameters in the prompt above:\n' + params.join('\n');
     }
 
     await window.electronAPI.copyToClipboard(content);
@@ -223,20 +226,15 @@ function showParameterDialog(prompt: Prompt) {
   prompt.parameters.forEach(param => {
     const input = document.getElementById(`param-${param}`) as HTMLInputElement;
     if (input) {
-      console.log('Adding keydown listener to:', param);
       input.addEventListener('keydown', (e) => {
-        console.log('Key pressed in input:', e.key);
         if (e.key === 'Enter') {
           e.preventDefault();
-          console.log('Enter pressed, copying...');
           handleCopy();
         } else if (e.key === 'Escape') {
           e.preventDefault();
           dialog.remove();
         }
       });
-    } else {
-      console.warn('Could not find input for param:', param);
     }
   });
 
@@ -245,6 +243,9 @@ function showParameterDialog(prompt: Prompt) {
     if (e.key === 'Escape') {
       e.preventDefault();
       dialog.remove();
+      // Return focus to search input for keyboard navigation
+      const searchInput = document.getElementById('search-input') as HTMLInputElement;
+      searchInput?.focus();
     }
   });
 
@@ -257,24 +258,28 @@ function showParameterDialog(prompt: Prompt) {
   // Event listeners
   document.getElementById('param-cancel')?.addEventListener('click', () => {
     dialog.remove();
+    // Return focus to search input for keyboard navigation
+    const searchInput = document.getElementById('search-input') as HTMLInputElement;
+    searchInput?.focus();
   });
 
   document.getElementById('param-copy-raw')?.addEventListener('click', async () => {
-    let content = prompt.content;
+    // Resolve partials but keep parameter placeholders
+    let content = await window.electronAPI.resolvePartials(prompt.content);
     const params: string[] = [];
     
     prompt.parameters.forEach(param => {
       const input = document.getElementById(`param-${param}`) as HTMLInputElement;
       const value = input?.value || '';
       if (value) {
-        params.push(`${param}=${value}`);
+        params.push(`[${param}] = ${value}`);
       } else {
-        params.push(`${param}=`);
+        params.push(`[${param}] = `);
       }
     });
 
     if (params.length > 0) {
-      content += '\n\n' + params.join('\n');
+      content += '\n\nReplace the following parameters in the prompt above:\n' + params.join('\n');
     }
 
     await window.electronAPI.copyToClipboard(content);
@@ -304,9 +309,8 @@ function render() {
   app.innerHTML = `
     <div class="search-box">
       <div class="folder-info">
-        <span class="folder-path" id="folder-path">Loading...</span>
-        <div style="display: flex; gap: 8px;">
-          <button class="change-folder-btn" id="open-folder-btn">Open in Filesystem</button>
+        <div style="display: flex; gap: 8px; margin-left: auto;">
+          <button class="change-folder-btn" id="open-folder-btn" title="Loading...">Open in Filesystem</button>
           <button class="change-folder-btn" id="change-folder-btn">Change Folder</button>
         </div>
       </div>
@@ -318,10 +322,10 @@ function render() {
         autocomplete="off"
       />
     </div>
-    <div id="results-container"></div>
+    <div class="results" id="results-container"></div>
     <div class="footer">
       <div class="keyboard-hint">
-        ↑↓ Navigate • Enter Select • Cmd+N New • Cmd+E Edit • Esc Close
+        ↑↓ Navigate • Enter Select • Cmd+N New • Cmd+E Edit • Cmd+P Partials • Esc Close
       </div>
     </div>
   `;

@@ -1,0 +1,1 @@
+Format as a standard email with: clear subject line, appropriate greeting, well-structured body with paragraphs, and professional closing with signature placeholder.
