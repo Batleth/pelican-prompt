@@ -10,6 +10,25 @@ const newPartialBtn = document.getElementById('newPartialBtn') as HTMLButtonElem
 const refreshBtn = document.getElementById('refreshBtn') as HTMLButtonElement;
 const partialCount = document.getElementById('partialCount') as HTMLDivElement;
 
+// Initialize theme
+async function initTheme() {
+  const theme = await window.electronAPI.getTheme();
+  applyTheme(theme);
+  
+  // Listen for theme changes
+  window.electronAPI.onThemeChanged((theme) => {
+    applyTheme(theme);
+  });
+}
+
+function applyTheme(theme: string) {
+  if (theme === 'dark') {
+    document.body.classList.add('dark');
+  } else {
+    document.body.classList.remove('dark');
+  }
+}
+
 // Load all partials on startup
 async function loadPartials(): Promise<void> {
   partials = await window.electronAPI.getAllPartials();
@@ -255,4 +274,5 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 });
 
 // Load partials on startup
+initTheme();
 loadPartials();

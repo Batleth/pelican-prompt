@@ -20,10 +20,9 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: transparent;
-            padding: 20px;
-            -webkit-app-region: drag;
-            height: calc(100% - 40px);
+            padding: 0;
             margin: 0;
+            height: 100%;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -31,22 +30,183 @@
 
         .container {
             background: white;
-            border-radius: 12px;
+            border-radius: 0;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             flex: 1;
-            max-height: 100%;
+            min-height: 0;
+            height: 100%;
+        }
+
+        .drag-handle {
+            height: 28px;
+            background: linear-gradient(to bottom, #f8f8f8, #f0f0f0);
+            border-bottom: 1px solid #ddd;
+            -webkit-app-region: drag;
+            cursor: grab;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .drag-handle-indicator {
+            width: 40px;
+            height: 4px;
+            background: #ccc;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px 6px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            -webkit-app-region: no-drag;
+            line-height: 1;
+        }
+
+        .theme-toggle:hover {
+            opacity: 1;
         }
 
         #app {
             display: flex;
             flex-direction: column;
-            height: 100%;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Dark mode styles */
+        body.dark {
+            background: transparent;
+        }
+
+        body.dark .container {
+            background: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        body.dark .drag-handle {
+            background: linear-gradient(to bottom, #2d2d2d, #252525);
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        body.dark .drag-handle-indicator {
+            background: #555;
+        }
+
+        body.dark .search-box {
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        body.dark .workspace-name {
+            color: #e0e0e0;
+        }
+
+        body.dark .folder-info {
+            color: #999;
+        }
+
+        body.dark .change-folder-btn {
+            background: #2d2d2d;
+            border: 1px solid #3a3a3a;
+            color: #e0e0e0;
+        }
+
+        body.dark .change-folder-btn:hover {
+            background: #3a3a3a;
+        }
+
+        body.dark .search-input {
+            background: #2d2d2d;
+            border: 2px solid #3a3a3a;
+            color: #e0e0e0;
+        }
+
+        body.dark .search-input:focus {
+            border-color: #0a84ff;
+        }
+
+        body.dark .search-input::placeholder {
+            color: #666;
+        }
+
+        body.dark .result-item {
+            border-bottom: 1px solid #2d2d2d;
+        }
+
+        body.dark .result-item:hover,
+        body.dark .result-item.selected {
+            background-color: #2d2d2d;
+            border-left: 3px solid #0a84ff;
+        }
+
+        body.dark .result-tag {
+            background: #0a84ff;
+        }
+
+        body.dark .result-title {
+            color: #e0e0e0;
+        }
+
+        body.dark .result-preview {
+            color: #999;
+        }
+
+        body.dark .empty-state {
+            color: #666;
+        }
+
+        body.dark .no-folder {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        body.dark .no-folder button {
+            background: #0a84ff;
+        }
+
+        body.dark .no-folder button:hover {
+            background: #0056b3;
+        }
+
+        body.dark .footer {
+            background: #2d2d2d;
+            border-top: 1px solid #3a3a3a;
+            color: #999;
+        }
+
+        body.dark .badge-legend {
+            color: #999;
+        }
+
+        body.dark .keyboard-hint {
+            color: #999;
+        }
+
+        body.dark .toast {
+            background: #2d2d2d;
+            border-left: 4px solid #ff453a;
+        }
+
+        body.dark .toast-message {
+            color: #e0e0e0;
         }
 
         .search-box {
-            padding: 20px;
+            padding: 16px 20px;
             border-bottom: 1px solid #e0e0e0;
             -webkit-app-region: no-drag;
             flex-shrink: 0;
@@ -170,7 +330,7 @@
         }
 
         .footer {
-            padding: 12px 20px;
+            padding: 10px 20px;
             border-top: 1px solid #e0e0e0;
             background: #f9f9f9;
             font-size: 12px;
@@ -179,11 +339,15 @@
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 40px;
             -webkit-app-region: no-drag;
         }
 
         .keyboard-hint {
             opacity: 0.7;
+            line-height: 1.4;
         }
 
         .badge-legend {
@@ -191,6 +355,8 @@
             gap: 12px;
             align-items: center;
             font-size: 11px;
+            line-height: 1.4;
+            flex-shrink: 0;
         }
 
         .legend-item {
@@ -317,6 +483,10 @@
 </head>
 <body>
     <div class="container">
+        <div class="drag-handle">
+            <div class="drag-handle-indicator"></div>
+            <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
+        </div>
         <div id="app"></div>
     </div>
     <div class="toast-container" id="toast-container"></div>

@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onReloadPrompts: (callback: () => void) => {
     ipcRenderer.on('reload-prompts', () => callback());
   },
+  // Theme APIs
+  getTheme: () => ipcRenderer.invoke('get-theme'),
+  setTheme: (theme: string) => ipcRenderer.invoke('set-theme', theme),
+  onThemeChanged: (callback: (theme: string) => void) => {
+    ipcRenderer.on('theme-changed', (_event, theme) => callback(theme));
+  },
   // Partials APIs
   getAllPartials: () => ipcRenderer.invoke('get-all-partials'),
   searchPartials: (query: string) => ipcRenderer.invoke('search-partials', query),
@@ -54,6 +60,9 @@ declare global {
       hideWindow: () => Promise<void>;
       onLoadPrompt: (callback: (prompt: Prompt) => void) => void;
       onReloadPrompts: (callback: () => void) => void;
+      getTheme: () => Promise<string>;
+      setTheme: (theme: string) => Promise<string>;
+      onThemeChanged: (callback: (theme: string) => void) => void;
       // Partials APIs
       getAllPartials: () => Promise<Partial[]>;
       searchPartials: (query: string) => Promise<Partial[]>;

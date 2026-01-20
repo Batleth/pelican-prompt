@@ -9,6 +9,25 @@ let isPartial = false; // Track if editing a partial vs a prompt
 
 type ToastType = 'error' | 'success' | 'warning';
 
+// Initialize theme
+async function initTheme() {
+  const theme = await window.electronAPI.getTheme();
+  applyTheme(theme);
+  
+  // Listen for theme changes
+  window.electronAPI.onThemeChanged((theme) => {
+    applyTheme(theme);
+  });
+}
+
+function applyTheme(theme: string) {
+  if (theme === 'dark') {
+    document.body.classList.add('dark');
+  } else {
+    document.body.classList.remove('dark');
+  }
+}
+
 function showToast(type: ToastType, title: string, message: string, duration: number = 5000) {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -461,4 +480,7 @@ You can also reference partials like {{> formats.email}} to reuse common content
 }
 
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', initialize);
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  initialize();
+});

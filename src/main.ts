@@ -482,6 +482,25 @@ Best regards,
     const window = BrowserWindow.fromWebContents(event.sender);
     window?.hide();
   });
+
+  ipcMain.handle('get-theme', () => {
+    return store.get('theme', 'light');
+  });
+
+  ipcMain.handle('set-theme', (_event, theme: string) => {
+    store.set('theme', theme);
+    // Notify all windows about theme change
+    if (searchWindow && !searchWindow.isDestroyed()) {
+      searchWindow.webContents.send('theme-changed', theme);
+    }
+    if (editorWindow && !editorWindow.isDestroyed()) {
+      editorWindow.webContents.send('theme-changed', theme);
+    }
+    if (partialsWindow && !partialsWindow.isDestroyed()) {
+      partialsWindow.webContents.send('theme-changed', theme);
+    }
+    return theme;
+  });
 });
 
 app.on('window-all-closed', () => {

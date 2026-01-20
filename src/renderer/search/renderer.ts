@@ -3,6 +3,49 @@ import { Prompt, SearchResult } from '../../types';
 let prompts: SearchResult[] = [];
 let selectedIndex = 0;
 let hasPromptsFolder = false;
+let currentTheme = 'light';
+
+// Initialize theme
+async function initTheme() {
+  currentTheme = await window.electronAPI.getTheme();
+  applyTheme(currentTheme);
+  
+  // Listen for theme changes from other windows
+  window.electronAPI.onThemeChanged((theme) => {
+    currentTheme = theme;
+    applyTheme(theme);
+  });
+}
+
+function applyTheme(theme: string) {
+  if (theme === 'dark') {
+    document.body.classList.add('dark');
+    updateThemeToggleIcon('☀️');
+  } else {
+    document.body.classList.remove('dark');
+    updateThemeToggleIcon('🌙');
+  }
+}
+
+function updateThemeToggleIcon(icon: string) {
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    toggle.textContent = icon;
+  }
+}
+
+async function toggleTheme() {
+  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+  currentTheme = newTheme;
+  await window.electronAPI.setTheme(newTheme);
+  applyTheme(newTheme);
+  
+  // Restore focus to search input after theme toggle
+  const searchInput = document.getElementById('search-input') as HTMLInputElement;
+  if (searchInput) {
+    searchInput.focus();
+  }
+}
 
 function showToast(message: string, duration: number = 4000) {
   const container = document.getElementById('toast-container');
@@ -307,6 +350,17 @@ function showParameterDialog(prompt: Prompt) {
   const app = document.getElementById('app');
   if (!app) return;
 
+  // Check current theme for modal styling
+  const isDark = document.body.classList.contains('dark');
+  const bgColor = isDark ? '#2d2d2d' : 'white';
+  const textColor = isDark ? '#e0e0e0' : '#333';
+  const inputBg = isDark ? '#3a3a3a' : 'white';
+  const inputBorder = isDark ? '#4a4a4a' : '#ddd';
+  const labelColor = isDark ? '#e0e0e0' : '#333';
+  const cancelBg = isDark ? '#3a3a3a' : '#f0f0f0';
+  const cancelColor = isDark ? '#e0e0e0' : '#333';
+  const overlayBg = isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.5)';
+
   const dialog = document.createElement('div');
   dialog.style.cssText = `
     position: fixed;
@@ -314,7 +368,7 @@ function showParameterDialog(prompt: Prompt) {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: ${overlayBg};
     display: flex;
     align-items: center;
     justify-content: center;
@@ -323,7 +377,7 @@ function showParameterDialog(prompt: Prompt) {
 
   const dialogContent = document.createElement('div');
   dialogContent.style.cssText = `
-    background: white;
+    background: ${bgColor};
     padding: 24px;
     border-radius: 12px;
     width: 500px;
@@ -331,15 +385,15 @@ function showParameterDialog(prompt: Prompt) {
   `;
 
   let html = `
-    <h3 style="margin-bottom: 16px; font-size: 18px;">Fill in Parameters</h3>
+    <h3 style="margin-bottom: 16px; font-size: 18px; color: ${textColor};">Fill in Parameters</h3>
     <div style="margin-bottom: 16px;">
   `;
 
   prompt.parameters.forEach(param => {
     html += `
       <div style="margin-bottom: 12px;">
-        <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500;">${param}</label>
-        <input type="text" id="param-${param}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;" />
+        <label style="display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: ${labelColor};">${param}</label>
+        <input type="text" id="param-${param}" style="width: 100%; padding: 8px; border: 1px solid ${inputBorder}; border-radius: 4px; font-size: 14px; background: ${inputBg}; color: ${textColor}; box-sizing: border-box;" />
       </div>
     `;
   });
@@ -347,7 +401,7 @@ function showParameterDialog(prompt: Prompt) {
   html += `
     </div>
     <div style="display: flex; gap: 8px; justify-content: flex-end;">
-      <button id="param-cancel" style="padding: 8px 16px; background: #f0f0f0; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+      <button id="param-cancel" style="padding: 8px 16px; background: ${cancelBg}; color: ${cancelColor}; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
       <button id="param-copy-raw" style="padding: 8px 16px; background: #666; color: white; border: none; border-radius: 6px; cursor: pointer;">Copy with Placeholders</button>
       <button id="param-copy" style="padding: 8px 16px; background: #007AFF; color: white; border: none; border-radius: 6px; cursor: pointer;">Copy</button>
     </div>
@@ -562,7 +616,16 @@ function renderResults() {
 }
 
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', initialize);
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  initialize();
+  
+  // Add theme toggle listener
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+  }
+});
 
 // Re-focus when window becomes visible
 window.addEventListener('focus', async () => {
