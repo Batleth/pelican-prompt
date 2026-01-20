@@ -4,6 +4,135 @@ let prompts: SearchResult[] = [];
 let selectedIndex = 0;
 let hasPromptsFolder = false;
 
+function showToast(message: string, duration: number = 4000) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `
+    <div class="toast-icon">⚠️</div>
+    <div class="toast-message">${message}</div>
+  `;
+
+  container.appendChild(toast);
+
+  if (duration > 0) {
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.style.animation = 'slideIn 0.3s ease-out reverse';
+        setTimeout(() => toast.remove(), 300);
+      }
+    }, duration);
+  }
+}
+
+function showDeleteConfirmation(prompt: Prompt) {
+  const app = document.getElementById('app');
+  if (!app) return;
+
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeIn 0.2s ease-out;
+  `;
+
+  const dialogContent = document.createElement('div');
+  dialogContent.style.cssText = `
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 400px;
+    max-width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  `;
+
+  dialogContent.innerHTML = `
+    <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #333;">Delete Prompt?</h3>
+    <div style="margin-bottom: 20px;">
+      <div style="font-size: 14px; color: #666; margin-bottom: 12px;">
+        Are you sure you want to delete this prompt?
+      </div>
+      <div style="background: #f5f5f5; padding: 12px; border-radius: 6px;">
+        <div style="font-weight: 600; color: #007AFF; font-size: 12px; margin-bottom: 4px;">${prompt.tag || 'No tag'}</div>
+        <div style="font-weight: 500; color: #333; font-size: 14px;">${prompt.title}</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+      <button id="delete-cancel" style="padding: 8px 16px; background: #f0f0f0; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Cancel</button>
+      <button id="delete-confirm" style="padding: 8px 16px; background: #FF3B30; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Delete</button>
+    </div>
+  `;
+
+  dialog.appendChild(dialogContent);
+  app.appendChild(dialog);
+
+  // Focus on Cancel button by default
+  const cancelBtn = document.getElementById('delete-cancel');
+  const confirmBtn = document.getElementById('delete-confirm');
+  
+  setTimeout(() => cancelBtn?.focus(), 50);
+
+  // Cancel handler
+  cancelBtn?.addEventListener('click', () => {
+    dialog.remove();
+    // Return focus to search input
+    const searchInput = document.getElementById('search-input') as HTMLInputElement;
+    searchInput?.focus();
+  });
+
+  // Confirm delete handler
+  confirmBtn?.addEventListener('click', async () => {
+    dialog.remove();
+    await deletePrompt(prompt);
+  });
+
+  // ESC key to cancel
+  dialog.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      dialog.remove();
+      const searchInput = document.getElementById('search-input') as HTMLInputElement;
+      searchInput?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (document.activeElement === confirmBtn) {
+        confirmBtn?.click();
+      } else {
+        cancelBtn?.click();
+      }
+    }
+  });
+}
+
+async function deletePrompt(prompt: Prompt) {
+  try {
+    await window.electronAPI.deletePrompt(prompt.filePath);
+    
+    // Show success toast
+    showToast(`Deleted: ${prompt.title}`, 3000);
+    
+    // Reload prompts
+    await loadPrompts('');
+    renderResults();
+    
+    // Return focus to search input
+    const searchInput = document.getElementById('search-input') as HTMLInputElement;
+    searchInput?.focus();
+  } catch (error: any) {
+    showToast(error?.message || 'Failed to delete prompt', 5000);
+  }
+}
+
 async function initialize() {
   const folder = await window.electronAPI.getPromptsFolder();
   hasPromptsFolder = !!folder;
@@ -14,13 +143,6 @@ async function initialize() {
 
   render();
   updateFolderDisplay();
-  setupVisibilityReload();
-}
-
-// Setup visibility change listeners to reload prompts when window becomes visible
-function setupVisibilityReload() {
-  // This function is called during initialization
-  // The actual reload is triggered by the 'reload-prompts' IPC event
 }
 
 async function loadPrompts(query: string = '') {
@@ -36,6 +158,7 @@ async function loadPrompts(query: string = '') {
 async function updateFolderDisplay() {
   const folderPath = await window.electronAPI.getPromptsFolder();
   const openFolderBtn = document.getElementById('open-folder-btn');
+  const workspaceNameEl = document.getElementById('workspace-name');
   
   if (openFolderBtn) {
     if (folderPath) {
@@ -44,11 +167,22 @@ async function updateFolderDisplay() {
       openFolderBtn.title = 'No folder selected';
     }
   }
+  
+  if (workspaceNameEl) {
+    if (folderPath) {
+      // Extract just the folder name from the path
+      const folderName = folderPath.split('/').pop() || folderPath.split('\\').pop() || 'Unknown';
+      workspaceNameEl.textContent = folderName;
+    } else {
+      workspaceNameEl.textContent = 'None';
+    }
+  }
 }
 
 function setupEventListeners() {
   const searchInput = document.getElementById('search-input') as HTMLInputElement;
   const changeFolderBtn = document.getElementById('change-folder-btn') as HTMLButtonElement;
+  const createWorkspaceBtn = document.getElementById('create-workspace-btn') as HTMLButtonElement;
   const openFolderBtn = document.getElementById('open-folder-btn') as HTMLButtonElement;
   
   if (changeFolderBtn) {
@@ -65,7 +199,28 @@ function setupEventListeners() {
 
   if (openFolderBtn) {
     openFolderBtn.addEventListener('click', async () => {
-      await window.electronAPI.openFolderInFilesystem();
+      try {
+        await window.electronAPI.openFolderInFilesystem();
+      } catch (error: any) {
+        showToast(error?.message || 'Failed to open folder');
+      }
+    });
+  }
+
+  if (createWorkspaceBtn) {
+    createWorkspaceBtn.addEventListener('click', async () => {
+      try {
+        const newFolder = await window.electronAPI.createWorkspace();
+        if (newFolder) {
+          hasPromptsFolder = true;
+          await loadPrompts('');
+          render();
+          updateFolderDisplay();
+          showToast('Workspace created successfully!', 2000);
+        }
+      } catch (error: any) {
+        showToast(error.message || 'Failed to create workspace', 4000);
+      }
     });
   }
   
@@ -107,6 +262,11 @@ function setupEventListeners() {
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
         e.preventDefault();
         window.electronAPI.openPartialsBrowser();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
+        e.preventDefault();
+        if (prompts.length > 0) {
+          showDeleteConfirmation(prompts[selectedIndex].prompt);
+        }
       }
     });
   }
@@ -309,9 +469,14 @@ function render() {
   app.innerHTML = `
     <div class="search-box">
       <div class="folder-info">
-        <div style="display: flex; gap: 8px; margin-left: auto;">
+        <div>
+          <span style="color: #666; font-size: 11px;">Current Workspace: </span>
+          <span class="workspace-name" id="workspace-name">Loading...</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
           <button class="change-folder-btn" id="open-folder-btn" title="Loading...">Open in Filesystem</button>
-          <button class="change-folder-btn" id="change-folder-btn">Change Folder</button>
+          <button class="change-folder-btn" id="create-workspace-btn">Create Workspace</button>
+          <button class="change-folder-btn" id="change-folder-btn">Change Workspace</button>
         </div>
       </div>
       <input 
@@ -325,7 +490,17 @@ function render() {
     <div class="results" id="results-container"></div>
     <div class="footer">
       <div class="keyboard-hint">
-        ↑↓ Navigate • Enter Select • Cmd+N New • Cmd+E Edit • Cmd+P Partials • Esc Close
+        ↑↓ Navigate • Enter Select • Cmd+N New • Cmd+E Edit • Cmd+R Delete • Cmd+P Partials • Esc Close
+      </div>
+      <div class="badge-legend">
+        <div class="legend-item">
+          <span class="legend-badge params">P</span>
+          <span>Parameters</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-badge partials">P</span>
+          <span>Partials</span>
+        </div>
       </div>
     </div>
   `;
@@ -353,8 +528,12 @@ function renderResults() {
       const prompt = result.prompt;
       const preview = prompt.content.substring(0, 100).replace(/\n/g, ' ');
       const selected = index === selectedIndex ? 'selected' : '';
+      
+      // Create badges for params and partials
       const paramBadge = prompt.parameters.length > 0 ? 
-        `<span class="param-badge">${prompt.parameters.length} param${prompt.parameters.length > 1 ? 's' : ''}</span>` : '';
+        `<span class="param-badge">${prompt.parameters.length}P</span>` : '';
+      const partialsBadge = prompt.partials.length > 0 ? 
+        `<span class="partials-badge">${prompt.partials.length}P</span>` : '';
       
       html += `
         <div class="result-item ${selected}" data-index="${index}">
@@ -362,6 +541,7 @@ function renderResults() {
             ${prompt.tag ? `<span class="result-tag">${prompt.tag}</span>` : ''}
             ${prompt.title}
             ${paramBadge}
+            ${partialsBadge}
           </div>
           <div class="result-preview">${preview}...</div>
         </div>
@@ -386,6 +566,12 @@ document.addEventListener('DOMContentLoaded', initialize);
 
 // Re-focus when window becomes visible
 window.addEventListener('focus', async () => {
+  // Clear any existing toasts
+  const toastContainer = document.getElementById('toast-container');
+  if (toastContainer) {
+    toastContainer.innerHTML = '';
+  }
+  
   const searchInput = document.getElementById('search-input') as HTMLInputElement;
   if (searchInput) {
     searchInput.value = ''; // Clear search

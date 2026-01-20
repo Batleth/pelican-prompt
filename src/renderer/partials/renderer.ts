@@ -105,15 +105,69 @@ function editPartial(index: number): void {
   const partial = filteredPartials[index];
   if (partial) {
     // Convert partial to a Prompt-like object for the editor
+    // Partials don't have tags, so we'll use an empty string
     window.electronAPI.openEditor({
+      id: partial.filePath,
+      tag: '', // Partials don't use tags
       title: partial.path,
       content: partial.content,
-      tags: [],
       parameters: [],
       partials: [],
       filePath: partial.filePath
     });
   }
+}
+
+// Show input dialog for new partial
+function showInputDialog(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const dialog = document.getElementById('input-dialog') as HTMLDivElement;
+    const input = document.getElementById('dialog-input') as HTMLInputElement;
+    const confirmBtn = document.getElementById('dialog-confirm') as HTMLButtonElement;
+    const cancelBtn = document.getElementById('dialog-cancel') as HTMLButtonElement;
+    
+    // Show dialog
+    dialog.style.display = 'flex';
+    input.value = '';
+    input.focus();
+    
+    // Handle confirm
+    const handleConfirm = () => {
+      const value = input.value.trim();
+      cleanup();
+      resolve(value || null);
+    };
+    
+    // Handle cancel
+    const handleCancel = () => {
+      cleanup();
+      resolve(null);
+    };
+    
+    // Handle Enter key
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleConfirm();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancel();
+      }
+    };
+    
+    // Cleanup function
+    const cleanup = () => {
+      dialog.style.display = 'none';
+      confirmBtn.removeEventListener('click', handleConfirm);
+      cancelBtn.removeEventListener('click', handleCancel);
+      input.removeEventListener('keydown', handleKeyDown);
+    };
+    
+    // Add event listeners
+    confirmBtn.addEventListener('click', handleConfirm);
+    cancelBtn.addEventListener('click', handleCancel);
+    input.addEventListener('keydown', handleKeyDown);
+  });
 }
 
 // Create a new partial
@@ -124,22 +178,12 @@ async function createNewPartial(): Promise<void> {
     return;
   }
 
-  // Prompt for partial path (dot notation)
-  const pathInput = prompt('Enter partial path (e.g., tones.friendly or formats.email):');
-  if (!pathInput) return;
-
-  // Validate path
-  const validation = await window.electronAPI.validatePartialPath(pathInput);
-  if (!validation.valid) {
-    alert(`Invalid partial path: ${validation.error}`);
-    return;
-  }
-
-  // Open editor with new partial
+  // Open editor with empty partial
   window.electronAPI.openEditor({
-    title: pathInput,
+    id: 'new-partial', // Signal that this is a new partial
+    tag: '', // Partials don't use tags
+    title: '', // User will define the path in the editor
     content: '',
-    tags: [],
     parameters: [],
     partials: [],
     filePath: '' // Empty means new file, will be saved to partials folder
@@ -196,6 +240,19 @@ function scrollToSelected(): void {
 // Button handlers
 newPartialBtn.addEventListener('click', createNewPartial);
 refreshBtn.addEventListener('click', loadPartials);
+
+// Handle window focus to ensure ESC works after editor closes and refresh partials list
+window.addEventListener('focus', () => {
+  loadPartials(); // Refresh partials list in case new partial was created
+  searchInput.focus();
+});
+
+// Add global ESC handler as backup
+document.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Escape') {
+    window.close();
+  }
+});
 
 // Load partials on startup
 loadPartials();

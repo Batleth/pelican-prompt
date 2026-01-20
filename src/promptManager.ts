@@ -251,8 +251,6 @@ export class PromptManager {
           this.add(doc);
         });
       });
-      
-      console.log(`Index rebuilt with ${documents.length} prompts`);
     } catch (error) {
       console.error('Error rebuilding index:', error);
     }
@@ -345,39 +343,179 @@ export class PromptManager {
     return this.prompts.get(filePath) || null;
   }
 
+  public async deletePrompt(filePath: string): Promise<void> {
+    try {
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error('Prompt file not found');
+      }
+
+      // Delete the file
+      try {
+        fs.unlinkSync(filePath);
+      } catch (err: any) {
+        throw new Error(`Failed to delete file: ${err.message}`);
+      }
+
+      // Remove from prompts map
+      this.prompts.delete(filePath);
+
+      // Rebuild search index
+      this.rebuildIndex();
+
+      // Clean up empty folders
+      this.cleanupEmptyFolders(path.dirname(filePath));
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to delete prompt');
+    }
+  }
+
+  public async savePartial(
+    dotPath: string,
+    content: string,
+    existingPath?: string
+  ): Promise<string> {
+    try {
+      // Validate partial path
+      const validation = this.validatePartialPath(dotPath);
+      if (!validation.valid) {
+        throw new Error(validation.error || 'Invalid partial path');
+      }
+
+      // Validate partial content
+      const contentValidation = this.validatePartialContent(content);
+      if (!contentValidation.valid) {
+        throw new Error(contentValidation.error || 'Invalid partial content');
+      }
+
+      // Convert dot path to file path
+      const pathSegments = dotPath.split('.');
+      const folderPath = pathSegments.length > 1
+        ? path.join(this.partialsFolder, ...pathSegments.slice(0, -1))
+        : this.partialsFolder;
+      
+      const filename = `${pathSegments[pathSegments.length - 1]}.md`;
+      const newPath = path.join(folderPath, filename);
+      const normalizedNewPath = path.normalize(newPath);
+      const normalizedExistingPath = existingPath ? path.normalize(existingPath) : undefined;
+      const isSameFile = normalizedNewPath === normalizedExistingPath;
+
+      // Check if file already exists (not overwriting same file)
+      if (!isSameFile && fs.existsSync(normalizedNewPath)) {
+        const relativePath = path.relative(this.partialsFolder, normalizedNewPath);
+        if (existingPath) {
+          const existingRelative = path.relative(this.partialsFolder, existingPath);
+          throw new Error(`Cannot rename to "${relativePath}" - a different partial already exists there. You are editing "${existingRelative}".`);
+        } else {
+          throw new Error(`A partial already exists at "${relativePath}". Please use a different path.`);
+        }
+      }
+
+      // Create folder structure if it doesn't exist
+      try {
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+      } catch (err: any) {
+        throw new Error(`Failed to create folder structure: ${err.message}`);
+      }
+
+      // Write the file first
+      try {
+        fs.writeFileSync(normalizedNewPath, content, 'utf-8');
+      } catch (err: any) {
+        throw new Error(`Failed to write file: ${err.message}`);
+      }
+
+      // Only after successful write, remove the old file if path changed
+      if (existingPath && !isSameFile && fs.existsSync(existingPath)) {
+        try {
+          fs.unlinkSync(existingPath);
+          this.partials.delete(dotPath);
+          this.cleanupEmptyFolders(path.dirname(existingPath));
+        } catch (err: any) {
+          console.warn(`Could not remove old partial file: ${err.message}`);
+        }
+      }
+
+      // Update partials map
+      this.partials.set(dotPath, { content, filePath: normalizedNewPath });
+
+      return normalizedNewPath;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to save partial');
+    }
+  }
+
   public async savePrompt(
     tag: string, 
     title: string, 
     content: string, 
     existingPath?: string
   ): Promise<string> {
-    // Validate tag depth
-    const tagSegments = tag ? tag.split('-') : [];
-    if (tagSegments.length > this.MAX_TAG_DEPTH) {
-      throw new Error(`Tag hierarchy cannot exceed ${this.MAX_TAG_DEPTH} levels`);
+    try {
+      // Validate tag depth
+      const tagSegments = tag ? tag.split('-') : [];
+      if (tagSegments.length > this.MAX_TAG_DEPTH) {
+        throw new Error(`Tag hierarchy cannot exceed ${this.MAX_TAG_DEPTH} levels`);
+      }
+
+      // Build folder path from tag segments
+      const folderPath = tagSegments.length > 0 
+        ? path.join(this.promptsFolder, ...tagSegments)
+        : this.promptsFolder;
+      
+      const filename = `${title}.md`;
+      const newPath = path.join(folderPath, filename);
+
+      // Normalize paths for comparison
+      const normalizedNewPath = path.normalize(newPath);
+      const normalizedExistingPath = existingPath ? path.normalize(existingPath) : undefined;
+      const isSameFile = normalizedNewPath === normalizedExistingPath;
+
+      // Check if file already exists (not overwriting same file)
+      if (!isSameFile && fs.existsSync(normalizedNewPath)) {
+        const relativePath = path.relative(this.promptsFolder, normalizedNewPath);
+        if (existingPath) {
+          const existingRelative = path.relative(this.promptsFolder, existingPath);
+          throw new Error(`Cannot rename to "${relativePath}" - a different prompt already exists there. You are editing "${existingRelative}".`);
+        } else {
+          throw new Error(`A prompt already exists at "${relativePath}". Please use a different tag or title.`);
+        }
+      }
+
+      // Create folder structure if it doesn't exist
+      try {
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+      } catch (err: any) {
+        throw new Error(`Failed to create folder structure: ${err.message}`);
+      }
+
+      // Write the file first (before deleting the old one to avoid data loss)
+      try {
+        fs.writeFileSync(normalizedNewPath, content, 'utf-8');
+      } catch (err: any) {
+        throw new Error(`Failed to write file: ${err.message}`);
+      }
+
+      // Only after successful write, remove the old file if path changed
+      if (existingPath && !isSameFile && fs.existsSync(existingPath)) {
+        try {
+          fs.unlinkSync(existingPath);
+          this.cleanupEmptyFolders(path.dirname(existingPath));
+        } catch (err: any) {
+          // Log warning but don't fail - new file is already written
+          console.warn(`Could not remove old file: ${err.message}`);
+        }
+      }
+
+      return normalizedNewPath;
+    } catch (error: any) {
+      // Rethrow with clear message
+      throw new Error(error.message || 'Failed to save prompt');
     }
-
-    // Build folder path from tag segments
-    const folderPath = tagSegments.length > 0 
-      ? path.join(this.promptsFolder, ...tagSegments)
-      : this.promptsFolder;
-    
-    const filename = `${title}.md`;
-    const newPath = path.join(folderPath, filename);
-
-    // Create folder structure if it doesn't exist
-    if (!fs.existsSync(folderPath)) {
-      fs.mkdirSync(folderPath, { recursive: true });
-    }
-
-    // If editing an existing prompt with a different path, remove the old file
-    if (existingPath && existingPath !== newPath && fs.existsSync(existingPath)) {
-      fs.unlinkSync(existingPath);
-      this.cleanupEmptyFolders(path.dirname(existingPath));
-    }
-
-    fs.writeFileSync(newPath, content, 'utf-8');
-    return newPath;
   }
 
   private cleanupEmptyFolders(dir: string): void {

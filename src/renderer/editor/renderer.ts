@@ -4,6 +4,50 @@ let currentPrompt: Prompt | null = null;
 let autocompleteDiv: HTMLDivElement | null = null;
 let autocompleteSelectedIndex = 0;
 let autocompletePartials: Partial[] = [];
+let isSaving = false;
+let isPartial = false; // Track if editing a partial vs a prompt
+
+type ToastType = 'error' | 'success' | 'warning';
+
+function showToast(type: ToastType, title: string, message: string, duration: number = 5000) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  
+  const icons = {
+    error: '❌',
+    success: '✅',
+    warning: '⚠️'
+  };
+
+  toast.innerHTML = `
+    <div class="toast-icon">${icons[type]}</div>
+    <div class="toast-content">
+      <div class="toast-title">${title}</div>
+      <div class="toast-message">${message}</div>
+    </div>
+    <button class="toast-close" aria-label="Close">×</button>
+  `;
+
+  container.appendChild(toast);
+
+  const closeBtn = toast.querySelector('.toast-close');
+  closeBtn?.addEventListener('click', () => {
+    toast.style.animation = 'slideIn 0.3s ease-out reverse';
+    setTimeout(() => toast.remove(), 300);
+  });
+
+  if (duration > 0) {
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.style.animation = 'slideIn 0.3s ease-out reverse';
+        setTimeout(() => toast.remove(), 300);
+      }
+    }, duration);
+  }
+}
 
 function initialize() {
   render();
@@ -12,6 +56,8 @@ function initialize() {
   // Listen for prompt loading from main process
   window.electronAPI.onLoadPrompt((prompt) => {
     currentPrompt = prompt;
+    // Check if this is a partial (no tag and either has /partials/ in path or is new-partial)
+    isPartial = !prompt.tag && (prompt.filePath.includes('/partials/') || prompt.id === 'new-partial');
     render();
   });
 }
@@ -226,90 +272,188 @@ function updateParameterInfo() {
 }
 
 async function savePrompt() {
+  // Prevent multiple simultaneous saves
+  if (isSaving) {
+    console.log('Save already in progress, ignoring duplicate request');
+    return;
+  }
+
+  const saveBtn = document.getElementById('save-btn') as HTMLButtonElement;
   const tagInput = document.getElementById('tag-input') as HTMLInputElement;
   const titleInput = document.getElementById('title-input') as HTMLInputElement;
   const contentTextarea = document.getElementById('content-textarea') as HTMLTextAreaElement;
 
-  if (!tagInput || !titleInput || !contentTextarea) return;
+  if (!tagInput || !titleInput || !contentTextarea || !saveBtn) return;
 
   const tag = tagInput.value.trim();
   const title = titleInput.value.trim();
   const content = contentTextarea.value.trim();
 
-  if (!tag || !title || !content) {
-    alert('Please fill in all fields');
+  // For partials, tag is optional (can be empty)
+  if (!title || !content) {
+    showToast('error', 'Missing Fields', 'Please fill in all required fields (title and content).');
     return;
   }
 
-  // Validate tag (letters, numbers, underscores, hyphens)
-  if (!/^[a-zA-Z0-9_-]+$/.test(tag)) {
-    alert('Tag can only contain letters, numbers, underscores, and hyphens.');
-    return;
+  // For prompts (not partials), validate tag
+  if (!isPartial) {
+    if (!tag) {
+      showToast('error', 'Missing Tag', 'Please enter a tag for this prompt.');
+      return;
+    }
+
+    // Validate tag (letters, numbers, underscores, hyphens)
+    if (!/^[a-zA-Z0-9_-]+$/.test(tag)) {
+      showToast('error', 'Invalid Tag', 'Tag can only contain letters, numbers, underscores, and hyphens.');
+      return;
+    }
+
+    // Validate tag depth (max 5 levels)
+    const tagSegments = tag.split('-');
+    if (tagSegments.length > 5) {
+      showToast('error', 'Tag Too Deep', 'Tag hierarchy cannot exceed 5 levels (e.g., com-mail-formal-de-business).');
+      return;
+    }
+
+    // Validate title for prompts (no special characters except spaces, hyphens, underscores)
+    if (!/^[a-zA-Z0-9_\s-]+$/.test(title)) {
+      showToast('error', 'Invalid Title', 'Title can contain letters, numbers, spaces, hyphens, and underscores.');
+      return;
+    }
+  } else {
+    // Validate partial path (dots, letters, numbers, hyphens, underscores)
+    if (!/^[a-zA-Z0-9_.-]+$/.test(title)) {
+      showToast('error', 'Invalid Partial Path', 'Partial path can contain letters, numbers, dots, hyphens, and underscores.');
+      return;
+    }
   }
 
-  // Validate tag depth (max 5 levels)
-  const tagSegments = tag.split('-');
-  if (tagSegments.length > 5) {
-    alert('Tag hierarchy cannot exceed 5 levels (e.g., com-mail-formal-de-business).');
-    return;
-  }
-
-  // Validate title (no special characters except spaces, hyphens, underscores)
-  if (!/^[a-zA-Z0-9_\s-]+$/.test(title)) {
-    alert('Title can contain letters, numbers, spaces, hyphens, and underscores.');
-    return;
-  }
+  // Set saving flag and disable button
+  isSaving = true;
+  saveBtn.disabled = true;
+  saveBtn.textContent = isPartial ? 'Saving...' : 'Saving...';
 
   try {
     const existingPath = currentPrompt?.filePath;
-    await window.electronAPI.savePrompt(tag, title, content, existingPath);
-    window.electronAPI.closeWindow();
-  } catch (error) {
-    alert('Error saving prompt: ' + error);
+    let newPath: string;
+    
+    if (isPartial) {
+      // Save as partial
+      newPath = await window.electronAPI.savePartial(title, content, existingPath);
+    } else {
+      // Save as prompt
+      newPath = await window.electronAPI.savePrompt(tag, title, content, existingPath);
+    }
+    
+    const successMsg = isPartial ? 'Partial saved successfully.' : 'Prompt saved successfully.';
+    showToast('success', 'Saved!', successMsg, 1500);
+    
+    // Wait a bit before closing to ensure user sees success message
+    setTimeout(() => {
+      isSaving = false;
+      window.electronAPI.closeWindow();
+    }, 1500);
+  } catch (error: any) {
+    // Re-enable save button and reset flag
+    isSaving = false;
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Prompt';
+    
+    const errorMsg = error?.message || String(error);
+    showToast('error', 'Save Failed', errorMsg, 7000);
+    console.error('Error saving prompt:', error);
   }
 }
 
 function render() {
   const editor = document.getElementById('editor');
+  const editorTitle = document.getElementById('editor-title');
+  const saveBtn = document.getElementById('save-btn');
+  
   if (!editor) return;
+
+  // Update header and button text based on whether editing partial or prompt
+  if (editorTitle) {
+    editorTitle.textContent = isPartial ? 'Partial Editor' : 'Prompt Editor';
+  }
+  if (saveBtn) {
+    saveBtn.textContent = isPartial ? 'Save Partial' : 'Save Prompt';
+  }
 
   const tag = currentPrompt?.tag || '';
   const title = currentPrompt?.title || '';
   const content = currentPrompt?.content || '';
 
-  editor.innerHTML = `
-    <div class="two-column">
-      <div class="form-group">
-        <label for="tag-input">Tag</label>
-        <input type="text" id="tag-input" value="${tag}" placeholder="com-mail" />
-        <div class="hint">Hierarchical tag using hyphens (e.g., com-mail-formal, code-python-async). Max 5 levels.</div>
-      </div>
-      <div class="form-group">
-        <label for="title-input">Title</label>
-        <input type="text" id="title-input" value="${title}" placeholder="My Prompt Title" />
-        <div class="hint">Descriptive name for your prompt</div>
-      </div>
-    </div>
+  // Different layout for partials vs prompts
+  if (isPartial) {
+    // For existing partials, make path readonly; for new partials, allow editing
+    const isExistingPartial = currentPrompt?.filePath ? true : false;
+    const readonlyAttr = isExistingPartial ? 'readonly style="background: #f5f5f5;"' : '';
+    const pathHint = isExistingPartial 
+      ? 'Dot notation path for the partial (read-only)' 
+      : 'Enter dot notation path (e.g., tones.urgent, formats.email)';
     
-    <div id="param-info" class="param-info" style="display: none;"></div>
-    
-    <div class="form-group">
-      <label for="content-textarea">Content</label>
-      <textarea id="content-textarea" placeholder="Enter your prompt here...
+    editor.innerHTML = `
+      <div class="form-group">
+        <label for="title-input">Partial Path</label>
+        <input type="text" id="title-input" value="${title}" placeholder="tones.urgent" ${readonlyAttr} />
+        <div class="hint">${pathHint}</div>
+      </div>
+      
+      <!-- Hidden tag input for partials -->
+      <input type="hidden" id="tag-input" value="" />
+      
+      <div id="param-info" class="param-info" style="display: none;"></div>
+      
+      <div class="form-group">
+        <label for="content-textarea">Content</label>
+        <textarea id="content-textarea" placeholder="Enter the partial content here...
+
+Note: Partials cannot contain other partials (no {{> }} syntax allowed).">${content}</textarea>
+        <div class="hint">Reusable content that can be included in prompts using {{> ${title || 'partial.path'}}}</div>
+      </div>
+    `;
+  } else {
+    editor.innerHTML = `
+      <div class="two-column">
+        <div class="form-group">
+          <label for="tag-input">Tag</label>
+          <input type="text" id="tag-input" value="${tag}" placeholder="com-mail" />
+          <div class="hint">Hierarchical tag using hyphens (e.g., com-mail-formal, code-python-async). Max 5 levels.</div>
+        </div>
+        <div class="form-group">
+          <label for="title-input">Title</label>
+          <input type="text" id="title-input" value="${title}" placeholder="My Prompt Title" />
+          <div class="hint">Descriptive name for your prompt</div>
+        </div>
+      </div>
+      
+      <div id="param-info" class="param-info" style="display: none;"></div>
+      
+      <div class="form-group">
+        <label for="content-textarea">Content</label>
+        <textarea id="content-textarea" placeholder="Enter your prompt here...
 
 You can use parameters like [PARAM_NAME] that will be replaced when using the prompt.
 You can also reference partials like {{> formats.email}} to reuse common content.">${content}</textarea>
-      <div class="hint">Use [PARAM_NAME] for dynamic parameters (uppercase with underscores) • Use {{> partial.path}} to include partials</div>
-    </div>
-  `;
+        <div class="hint">Use [PARAM_NAME] for dynamic parameters (uppercase with underscores) • Use {{> partial.path}} to include partials</div>
+      </div>
+    `;
+  }
 
   setupEventListeners();
   updateParameterInfo();
 
   // Focus on appropriate field
   if (!currentPrompt) {
-    const tagInput = document.getElementById('tag-input') as HTMLInputElement;
-    tagInput?.focus();
+    if (isPartial) {
+      // For new partials, focus on title (path) input first
+      const titleInput = document.getElementById('title-input') as HTMLInputElement;
+      titleInput?.focus();
+    } else {
+      const tagInput = document.getElementById('tag-input') as HTMLInputElement;
+      tagInput?.focus();
+    }
   } else {
     const contentTextarea = document.getElementById('content-textarea') as HTMLTextAreaElement;
     contentTextarea?.focus();

@@ -151,16 +151,104 @@
             margin-top: 4px;
             padding-left: 20px;
         }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 300px;
+            max-width: 400px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.error {
+            border-left: 4px solid #FF3B30;
+        }
+
+        .toast.success {
+            border-left: 4px solid #34C759;
+        }
+
+        .toast.warning {
+            border-left: 4px solid #FF9500;
+        }
+
+        .toast-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .toast-close:hover {
+            color: #333;
+        }
     </style>
 </head>
 <body style="overflow: hidden; margin: 0px">
     <div class="header">
-        <h1>Prompt Editor</h1>
+        <h1 id="editor-title">Prompt Editor</h1>
         <div class="header-buttons">
             <button class="btn btn-secondary" id="cancel-btn">Cancel</button>
             <button class="btn btn-primary" id="save-btn">Save Prompt</button>
         </div>
     </div>
     <div class="editor-container" id="editor"></div>
+    <div class="toast-container" id="toast-container"></div>
 </body>
 </html>

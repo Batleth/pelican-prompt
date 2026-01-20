@@ -18,8 +18,3 @@ export interface Partial {
   content: string;
   filePath: string;
 }
-
-export interface ParameterValue {
-  name: string;
-  value: string;
-}

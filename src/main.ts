@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import Store from 'electron-store';
 import { PromptManager } from './promptManager';
-import { Prompt, ParameterValue } from './types';
+import { Prompt } from './types';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -118,6 +118,16 @@ const createEditorWindow = (prompt?: Prompt): void => {
 
   editorWindow.on('closed', () => {
     editorWindow = null;
+    
+    // Return focus to partials window if it's open
+    if (partialsWindow && !partialsWindow.isDestroyed()) {
+      partialsWindow.focus();
+    }
+    // Otherwise return focus to search window if it's open
+    else if (searchWindow && !searchWindow.isDestroyed()) {
+      searchWindow.show();
+      searchWindow.focus();
+    }
   });
 };
 
@@ -179,22 +189,134 @@ app.whenReady().then(() => {
 
   // IPC handlers
   ipcMain.handle('select-folder', async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openDirectory', 'createDirectory']
-    });
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory', 'createDirectory'],
+        title: 'Select Workspace Folder',
+        buttonLabel: 'Select Workspace'
+      });
 
-    if (!result.canceled && result.filePaths.length > 0) {
-      const folder = result.filePaths[0];
-      store.set('promptsFolder', folder);
-      
-      if (promptManager) {
-        promptManager.destroy();
+      if (!result.canceled && result.filePaths.length > 0) {
+        const folder = result.filePaths[0];
+        
+        // Verify folder is accessible
+        try {
+          fs.accessSync(folder, fs.constants.R_OK | fs.constants.W_OK);
+        } catch (err) {
+          throw new Error('Selected folder is not accessible. Please check permissions.');
+        }
+        
+        // Validate workspace structure - check for prompts and partials folders
+        const promptsFolder = path.join(folder, 'prompts');
+        const partialsFolder = path.join(folder, 'partials');
+        
+        const hasPrompts = fs.existsSync(promptsFolder);
+        const hasPartials = fs.existsSync(partialsFolder);
+        
+        if (!hasPrompts || !hasPartials) {
+          const missing = [];
+          if (!hasPrompts) missing.push('prompts');
+          if (!hasPartials) missing.push('partials');
+          
+          // Create the missing folders
+          if (!hasPrompts) {
+            fs.mkdirSync(promptsFolder, { recursive: true });
+          }
+          if (!hasPartials) {
+            fs.mkdirSync(partialsFolder, { recursive: true });
+          }
+          
+          console.log(`Created missing workspace folders: ${missing.join(', ')}`);
+        }
+        
+        store.set('promptsFolder', folder);
+        
+        if (promptManager) {
+          promptManager.destroy();
+        }
+        
+        try {
+          promptManager = new PromptManager(folder);
+        } catch (err: any) {
+          throw new Error(`Failed to initialize folder: ${err.message}`);
+        }
+        
+        // Show the search window after successfully selecting workspace
+        createSearchWindow();
+        
+        return folder;
       }
-      promptManager = new PromptManager(folder);
-      
-      return folder;
+      return null;
+    } catch (error: any) {
+      console.error('Error selecting folder:', error);
+      throw error;
     }
-    return null;
+  });
+
+  ipcMain.handle('create-workspace', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory', 'createDirectory'],
+        title: 'Create New Workspace',
+        buttonLabel: 'Create Here'
+      });
+
+      if (!result.canceled && result.filePaths.length > 0) {
+        const baseFolder = result.filePaths[0];
+        
+        // Create workspace folder structure
+        const promptsFolder = path.join(baseFolder, 'prompts');
+        const partialsFolder = path.join(baseFolder, 'partials');
+        
+        // Create directories
+        fs.mkdirSync(promptsFolder, { recursive: true });
+        fs.mkdirSync(partialsFolder, { recursive: true });
+        
+        // Create example prompt with parameters
+        const examplePromptPath = path.join(promptsFolder, 'com', 'mail');
+        fs.mkdirSync(examplePromptPath, { recursive: true });
+        const examplePromptFile = path.join(examplePromptPath, 'welcome.md');
+        const examplePromptContent = `---
+tag: com-mail
+title: welcome
+---
+
+Hi [NAME],
+
+Welcome to [COMPANY]! We're excited to have you on board.
+
+{{> greetings.formal}}
+
+Best regards,
+[SENDER_NAME]`;
+        fs.writeFileSync(examplePromptFile, examplePromptContent, 'utf-8');
+        
+        // Create example partial
+        const examplePartialPath = path.join(partialsFolder, 'greetings');
+        fs.mkdirSync(examplePartialPath, { recursive: true });
+        const examplePartialFile = path.join(examplePartialPath, 'formal.md');
+        const examplePartialContent = `We look forward to working with you and supporting your success in your new role.`;
+        fs.writeFileSync(examplePartialFile, examplePartialContent, 'utf-8');
+        
+        // Save to store and initialize
+        store.set('promptsFolder', baseFolder);
+        
+        if (promptManager) {
+          promptManager.destroy();
+        }
+        
+        promptManager = new PromptManager(baseFolder);
+        
+        // Show the search window after successfully creating workspace
+        createSearchWindow();
+        
+        return baseFolder;
+      }
+      return null;
+    } catch (error: any) {
+      console.error('Error creating workspace:', error);
+      throw error;
+    }
   });
 
   ipcMain.handle('get-prompts-folder', () => {
@@ -202,12 +324,25 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('open-folder-in-filesystem', async () => {
-    const folder = store.get('promptsFolder') as string | undefined;
-    if (folder) {
-      await shell.openPath(folder);
+    try {
+      const folder = store.get('promptsFolder') as string | undefined;
+      if (!folder) {
+        throw new Error('No prompts folder selected');
+      }
+      
+      if (!fs.existsSync(folder)) {
+        throw new Error('Prompts folder no longer exists');
+      }
+      
+      const result = await shell.openPath(folder);
+      if (result) {
+        throw new Error(`Failed to open folder: ${result}`);
+      }
       return true;
+    } catch (error: any) {
+      console.error('Error opening folder:', error);
+      throw error;
     }
-    return false;
   });
 
   ipcMain.handle('search-prompts', (_event, query: string) => {
@@ -227,10 +362,27 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('save-prompt', async (_event, tag: string, title: string, content: string, existingPath?: string) => {
-    if (!promptManager) {
-      throw new Error('Prompts folder not set');
+    try {
+      if (!promptManager) {
+        throw new Error('Prompts folder not set. Please select a folder first.');
+      }
+      return await promptManager.savePrompt(tag, title, content, existingPath);
+    } catch (error: any) {
+      console.error('Error in save-prompt handler:', error);
+      throw error;
     }
-    return await promptManager.savePrompt(tag, title, content, existingPath);
+  });
+
+  ipcMain.handle('save-partial', async (_event, dotPath: string, content: string, existingPath?: string) => {
+    try {
+      if (!promptManager) {
+        throw new Error('Prompts folder not set. Please select a folder first.');
+      }
+      return await promptManager.savePartial(dotPath, content, existingPath);
+    } catch (error: any) {
+      console.error('Error in save-partial handler:', error);
+      throw error;
+    }
   });
 
   ipcMain.handle('get-prompt', (_event, filePath: string) => {
@@ -238,6 +390,19 @@ app.whenReady().then(() => {
       return null;
     }
     return promptManager.getPrompt(filePath);
+  });
+
+  ipcMain.handle('delete-prompt', async (_event, filePath: string) => {
+    try {
+      if (!promptManager) {
+        throw new Error('Prompts folder not set');
+      }
+      await promptManager.deletePrompt(filePath);
+      return true;
+    } catch (error: any) {
+      console.error('Error deleting prompt:', error);
+      throw error;
+    }
   });
 
   ipcMain.handle('copy-to-clipboard', (_event, text: string) => {

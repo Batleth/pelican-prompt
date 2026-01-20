@@ -238,7 +238,7 @@ src/
 ├── main.ts                 # Main process (window management, IPC handlers, global shortcuts)
 ├── preload.ts              # IPC bridge (secure renderer-main communication)
 ├── promptManager.ts        # Core logic (file operations, search indexing, disk reload)
-├── types.ts                # TypeScript interfaces (Prompt, SearchResult, ParameterValue)
+├── types.ts                # TypeScript interfaces (Prompt, SearchResult, Partial)
 └── renderer/
     ├── search/             # Search window (frameless, transparent, always-on-top)
     │   ├── index.html

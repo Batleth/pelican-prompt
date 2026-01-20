@@ -105,6 +105,45 @@
         background-color: #e0e0e0;
       }
 
+      /* Dialog styles */
+      .dialog-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      .dialog-box {
+        background-color: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        min-width: 400px;
+        max-width: 500px;
+      }
+
+      .dialog-box h3 {
+        margin: 0 0 10px 0;
+        font-size: 20px;
+        color: #333;
+      }
+
+      .dialog-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .dialog-box .btn {
+        padding: 10px 20px;
+      }
+
       #partialsList {
         flex: 1;
         overflow-y: auto;
@@ -220,6 +259,26 @@
         <div class="actions">
           <button id="newPartialBtn" class="btn-primary">New Partial</button>
           <button id="refreshBtn" class="btn-secondary">Refresh</button>
+        </div>
+      </div>
+      
+      <!-- Input Dialog -->
+      <div id="input-dialog" class="dialog-overlay">
+        <div class="dialog-box">
+          <h3>New Partial</h3>
+          <p style="margin: 15px 0; color: #666; font-size: 14px;">
+            Enter partial path using dot notation:
+          </p>
+          <input 
+            type="text" 
+            id="dialog-input" 
+            placeholder="e.g., tones.friendly or formats.email"
+            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 20px;"
+          >
+          <div class="dialog-buttons">
+            <button id="dialog-cancel" class="btn btn-secondary">Cancel</button>
+            <button id="dialog-confirm" class="btn btn-primary">Create</button>
+          </div>
         </div>
       </div>
       

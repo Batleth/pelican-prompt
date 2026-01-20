@@ -1,15 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { Prompt, SearchResult, ParameterValue, Partial } from './types';
+import { Prompt, SearchResult, Partial } from './types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: () => ipcRenderer.invoke('select-folder'),
+  createWorkspace: () => ipcRenderer.invoke('create-workspace'),
   getPromptsFolder: () => ipcRenderer.invoke('get-prompts-folder'),
   openFolderInFilesystem: () => ipcRenderer.invoke('open-folder-in-filesystem'),
   searchPrompts: (query: string) => ipcRenderer.invoke('search-prompts', query),
   getAllPrompts: () => ipcRenderer.invoke('get-all-prompts'),
   savePrompt: (tag: string, title: string, content: string, existingPath?: string) => 
     ipcRenderer.invoke('save-prompt', tag, title, content, existingPath),
+  savePartial: (dotPath: string, content: string, existingPath?: string) =>
+    ipcRenderer.invoke('save-partial', dotPath, content, existingPath),
   getPrompt: (filePath: string) => ipcRenderer.invoke('get-prompt', filePath),
+  deletePrompt: (filePath: string) => ipcRenderer.invoke('delete-prompt', filePath),
   copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
   openEditor: (prompt?: Prompt) => ipcRenderer.invoke('open-editor', prompt),
   closeWindow: () => ipcRenderer.invoke('close-window'),
@@ -35,12 +39,15 @@ declare global {
   interface Window {
     electronAPI: {
       selectFolder: () => Promise<string | null>;
+      createWorkspace: () => Promise<string | null>;
       getPromptsFolder: () => Promise<string | undefined>;
       openFolderInFilesystem: () => Promise<boolean>;
       searchPrompts: (query: string) => Promise<SearchResult[]>;
       getAllPrompts: () => Promise<Prompt[]>;
       savePrompt: (tag: string, title: string, content: string, existingPath?: string) => Promise<string>;
+      savePartial: (dotPath: string, content: string, existingPath?: string) => Promise<string>;
       getPrompt: (filePath: string) => Promise<Prompt | null>;
+      deletePrompt: (filePath: string) => Promise<boolean>;
       copyToClipboard: (text: string) => Promise<boolean>;
       openEditor: (prompt?: Prompt) => Promise<void>;
       closeWindow: () => Promise<void>;
