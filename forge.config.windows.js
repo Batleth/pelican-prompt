@@ -1,3 +1,7 @@
+// forge.config.windows.js
+// Use this config when building on Windows to get the .exe installer
+// Run: npm run make -- --config forge.config.windows.js
+
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
@@ -11,45 +15,27 @@ module.exports = {
   },
   rebuildConfig: {},
   makers: [
-    // Mac DMG installer
+    // Windows installer (only works on Windows)
     {
-      name: '@electron-forge/maker-dmg',
+      name: '@electron-forge/maker-squirrel',
       config: {
-        icon: './build/icons/pelicanprompt.icns',
-        format: 'ULFO'
+        name: 'PelicanPrompt',
+        authors: 'Pelican Prompt',
+        description: 'A file-based prompt management application',
+        setupIcon: './build/icons/pelicanprompt.ico',
       },
-      platforms: ['darwin'],
     },
-    // Mac ZIP (for auto-updates and distribution)
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin'],
-    },
-    // Windows ZIP (portable version - works from macOS, no Wine needed)
+    // Windows ZIP (portable version)
     {
       name: '@electron-forge/maker-zip',
       platforms: ['win32'],
     },
-    // Note: Windows installer (.exe) must be built on Windows
-    // Uncomment this when building on Windows:
-    // {
-    //   name: '@electron-forge/maker-squirrel',
-    //   config: {
-    //     name: 'PelicanPrompt',
-    //     authors: 'Pelican Prompt',
-    //     description: 'A file-based prompt management application',
-    //     setupIcon: './build/icons/pelicanprompt.ico',
-    //   },
-    //   platforms: ['win32'],
-    // },
   ],
   plugins: [
     {
       name: '@electron-forge/plugin-auto-unpack-natives',
       config: {},
     },
-    // Fuses are used to enable/disable various Electron functionality
-    // at package time, before code signing the application
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,
