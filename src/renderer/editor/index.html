@@ -93,6 +93,7 @@
             border: 1px solid #ddd;
             border-radius: 6px;
             background: white;
+            color: #1a1a1a;
             transition: border-color 0.2s;
         }
 
@@ -111,6 +112,7 @@
             border: 1px solid #ddd;
             border-radius: 6px;
             background: white;
+            color: #1a1a1a;
             resize: vertical;
             transition: border-color 0.2s;
         }
@@ -278,19 +280,19 @@
             color: #e0e0e0;
         }
 
-        body.dark input,
-        body.dark textarea {
+        body.dark .form-group input[type="text"],
+        body.dark .form-group textarea {
             background: #2d2d2d;
             border: 1px solid #3a3a3a;
             color: #e0e0e0;
         }
 
-        body.dark input:focus,
-        body.dark textarea:focus {
+        body.dark .form-group input[type="text"]:focus,
+        body.dark .form-group textarea:focus {
             border-color: #0a84ff;
         }
 
-        body.dark input:read-only {
+        body.dark .form-group input[type="text"]:read-only {
             background: #252525;
             color: #999;
         }
