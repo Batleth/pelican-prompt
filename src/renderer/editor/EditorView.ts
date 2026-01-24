@@ -252,6 +252,40 @@ You can also reference partials like {{> formats.email}} to reuse common content
     this.autocompleteDiv.innerHTML = items;
   }
 
+  showPathAutocomplete(input: HTMLInputElement, suggestions: string[], selectedIndex: number) {
+    if (!this.autocompleteDiv) {
+      this.autocompleteDiv = document.createElement('div');
+      this.autocompleteDiv.className = 'autocomplete-dropdown positioned-dynamic is-hidden';
+      document.body.appendChild(this.autocompleteDiv);
+    }
+
+    const rect = input.getBoundingClientRect();
+    const top = rect.bottom + 5;
+
+    this.autocompleteDiv.classList.remove('is-hidden');
+    document.documentElement.style.setProperty('--dynamic-left', `${rect.left}px`);
+    document.documentElement.style.setProperty('--dynamic-top', `${top}px`);
+    // Ensure width matches input
+    this.autocompleteDiv.style.width = `${rect.width}px`;
+
+    this.renderPathAutocompleteItems(suggestions, selectedIndex);
+  }
+
+  renderPathAutocompleteItems(suggestions: string[], selectedIndex: number) {
+    if (!this.autocompleteDiv) return;
+
+    const items = suggestions.map((suggestion, index) => {
+      const selectedClass = index === selectedIndex ? 'is-active' : '';
+      return `
+          <div class="autocomplete-item ${selectedClass}" data-index="${index}">
+            <div>${suggestion}</div>
+          </div>
+        `;
+    }).join('');
+
+    this.autocompleteDiv.innerHTML = items;
+  }
+
   hideAutocomplete() {
     if (this.autocompleteDiv) {
       this.autocompleteDiv.classList.add('is-hidden');
@@ -282,6 +316,14 @@ You can also reference partials like {{> formats.email}} to reuse common content
 
   addContentKeyDownListener(handler: (e: KeyboardEvent) => void) {
     document.getElementById('content-textarea')?.addEventListener('keydown', handler);
+  }
+
+  addTitleInputListener(handler: (e: Event) => void) {
+    document.getElementById('title-input')?.addEventListener('input', handler);
+  }
+
+  addTitleKeyDownListener(handler: (e: KeyboardEvent) => void) {
+    document.getElementById('title-input')?.addEventListener('keydown', handler);
   }
 
   addGlobalKeyDownListener(handler: (e: KeyboardEvent) => void) {

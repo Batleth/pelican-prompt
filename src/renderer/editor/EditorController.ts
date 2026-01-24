@@ -8,8 +8,12 @@ export class EditorController {
     private isSaving: boolean = false;
     private autocompletePartials: Partial[] = [];
     private autocompleteSelectedIndex: number = 0;
+    private autocompleteSelectedIndex: number = 0;
     private isAutocompleteVisible: boolean = false;
+    private isPathAutocomplete: boolean = false;
+    private pathAutocompleteSuggestions: string[] = [];
     private onClose: () => void;
+    private globalKeyDownHandler: ((e: KeyboardEvent) => void) | null = null;
 
     constructor(view: EditorView, onClose: () => void) {
         this.view = view;
@@ -36,6 +40,9 @@ export class EditorController {
         });
 
         this.view.addContentKeyDownListener((e) => this.handleContentKeyDown(e));
+
+        this.view.addTitleInputListener((e) => this.handlePathAutocomplete(e));
+        this.view.addTitleKeyDownListener((e) => this.handlePathKeyDown(e));
 
         // We attach global keydown for Cmd+S and Esc
         // Note: In single window app, we need to be careful not to double-bind or leave listeners
@@ -74,8 +81,15 @@ export class EditorController {
         // OR just handle it on the Inputs.
         // Cmd+S is the tricky one.
 
-        document.addEventListener('keydown', globalHandler);
-        // TODO: Clean up this listener when view changes.
+        this.globalKeyDownHandler = globalHandler;
+        document.addEventListener('keydown', this.globalKeyDownHandler);
+    }
+
+    destroy() {
+        if (this.globalKeyDownHandler) {
+            document.removeEventListener('keydown', this.globalKeyDownHandler);
+            this.globalKeyDownHandler = null;
+        }
     }
 
     extractParameters(content: string): string[] {
@@ -149,9 +163,80 @@ export class EditorController {
         }
     }
 
+    async handlePathAutocomplete(e: Event) {
+        if (!this.isPartial) return;
+
+        const input = e.target as HTMLInputElement;
+        const value = input.value;
+
+        // If empty or already has a dot (maybe we stop suggesting after dot? or suggest files?)
+        // User asked for "suggestions of the existing paths like tone, formats".
+        // Let's assume we suggest top-level folders if no dot is present.
+        if (!value || value.includes('.')) {
+            this.hideAutocomplete();
+            return;
+        }
+
+        const allPartials = await window.electronAPI.getAllPartials();
+        // Extract unique local roots (before first dot)
+        const roots = new Set<string>();
+        allPartials.forEach(p => {
+            const parts = p.path.split('.');
+            if (parts.length > 0) roots.add(parts[0]);
+        });
+
+        const suggestions = Array.from(roots).filter(r => r.toLowerCase().startsWith(value.toLowerCase())).sort();
+
+        if (suggestions.length > 0) {
+            this.pathAutocompleteSuggestions = suggestions;
+            this.autocompleteSelectedIndex = 0;
+            this.isAutocompleteVisible = true;
+            this.isPathAutocomplete = true;
+            this.view.showPathAutocomplete(input, suggestions, 0);
+
+            this.view.bindAutocompleteClicks((index) => {
+                this.autocompleteSelectedIndex = index;
+                this.insertPathAutocomplete();
+            });
+        } else {
+            this.hideAutocomplete();
+        }
+    }
+
+    insertPathAutocomplete() {
+        const input = document.getElementById('title-input') as HTMLInputElement;
+        if (!input || !this.pathAutocompleteSuggestions.length) return;
+
+        const suggestion = this.pathAutocompleteSuggestions[this.autocompleteSelectedIndex];
+        input.value = suggestion + '.'; // Append dot for convenience?
+        this.hideAutocomplete();
+        input.focus();
+    }
+
     hideAutocomplete() {
         this.isAutocompleteVisible = false;
+        this.isPathAutocomplete = false;
         this.view.hideAutocomplete();
+    }
+
+    handlePathKeyDown(e: KeyboardEvent) {
+        if (this.isAutocompleteVisible && this.isPathAutocomplete) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this.autocompleteSelectedIndex = Math.min(this.autocompleteSelectedIndex + 1, this.pathAutocompleteSuggestions.length - 1);
+                this.view.renderPathAutocompleteItems(this.pathAutocompleteSuggestions, this.autocompleteSelectedIndex);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.autocompleteSelectedIndex = Math.max(this.autocompleteSelectedIndex - 1, 0);
+                this.view.renderPathAutocompleteItems(this.pathAutocompleteSuggestions, this.autocompleteSelectedIndex);
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                this.insertPathAutocomplete();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                this.hideAutocomplete();
+            }
+        }
     }
 
     handleContentKeyDown(e: KeyboardEvent) {

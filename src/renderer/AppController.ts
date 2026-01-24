@@ -134,7 +134,10 @@ export class AppController {
         // Ideally call destroy() on controllers to remove listeners
         // For now we rely on garbage collection and overwriting #app
         this.searchController = null;
-        this.editorController = null;
+        if (this.editorController) {
+            this.editorController.destroy();
+            this.editorController = null;
+        }
         this.partialsController = null;
 
         // Clear DOM
