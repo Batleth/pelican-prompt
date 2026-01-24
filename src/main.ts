@@ -52,7 +52,7 @@ app.whenReady().then(() => {
 
   // Register global shortcut
   globalShortcut.register('CommandOrControl+K', () => {
-    windowManager.createSearchWindow();
+    windowManager.createMainWindow();
   });
 
   // Check if prompts folder is set
@@ -74,7 +74,7 @@ app.whenReady().then(() => {
   );
 
   // Open the search window immediately on startup
-  windowManager.createSearchWindow();
+  windowManager.createMainWindow();
 });
 
 app.on('window-all-closed', () => {
@@ -96,5 +96,5 @@ app.on('will-quit', () => {
 
 app.on('activate', () => {
   // On macOS it's common to re-open the search window when clicking the dock icon
-  windowManager.createSearchWindow();
+  windowManager.createMainWindow();
 });

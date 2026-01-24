@@ -41,7 +41,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   validatePartialPath: (dotPath: string) => ipcRenderer.invoke('validate-partial-path', dotPath),
   resolvePartials: (content: string) => ipcRenderer.invoke('resolve-partials', content),
   getPartialsInFolder: (dotPath: string) => ipcRenderer.invoke('get-partials-in-folder', dotPath),
-  openPartialsBrowser: () => ipcRenderer.invoke('open-partials-browser')
+  openPartialsBrowser: () => ipcRenderer.invoke('open-partials-browser'),
+  onOpenEditor: (callback: (prompt: Prompt | null) => void) => {
+    ipcRenderer.on('open-editor', (_event, prompt) => callback(prompt));
+  },
+  onOpenPartialsBrowser: (callback: () => void) => {
+    ipcRenderer.on('open-partials-browser', () => callback());
+  }
 });
 
 declare global {
@@ -78,6 +84,8 @@ declare global {
       resolvePartials: (content: string) => Promise<string>;
       getPartialsInFolder: (dotPath: string) => Promise<Partial[]>;
       openPartialsBrowser: () => Promise<void>;
+      onOpenEditor: (callback: (prompt: Prompt | null) => void) => void;
+      onOpenPartialsBrowser: (callback: () => void) => void;
     };
   }
 }

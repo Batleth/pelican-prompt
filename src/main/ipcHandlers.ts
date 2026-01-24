@@ -52,7 +52,7 @@ export function registerHandlers(store: any, windowManager: WindowManager, getPr
                     throw new Error(`Failed to initialize folder: ${err.message}`);
                 }
 
-                windowManager.createSearchWindow();
+                windowManager.createMainWindow();
                 return folder;
             }
             return null;
@@ -112,7 +112,7 @@ Best regards,
                 const newPm = new PromptManager(baseFolder);
                 setPromptManager(newPm);
 
-                windowManager.createSearchWindow();
+                windowManager.createMainWindow();
                 return baseFolder;
             }
             return null;
@@ -220,34 +220,37 @@ Best regards,
 
     // Window Handlers
     ipcMain.handle('open-editor', (_event, prompt?: Prompt) => {
-        windowManager.createEditorWindow(prompt);
-        windowManager.hideSearchWindow();
+        windowManager.switchToEditor(prompt);
     });
 
     ipcMain.handle('open-partials-browser', () => {
-        windowManager.createPartialsWindow();
+        windowManager.switchToPartials();
     });
 
     ipcMain.handle('open-search-window', () => {
-        windowManager.createSearchWindow();
+        windowManager.createMainWindow();
     });
 
     ipcMain.handle('close-window', (event) => {
-        const window = windowManager.getContextWindow(event.sender);
-        window?.close();
+        // In single window mode, "close" might mean "hide" or "close app".
+        // For editor cancel, we might not want to close the window but go back.
+        // But the AppController handles 'Esc' by switching views.
+        // If the renderer calls 'close-window', it likely means "Close the App Window".
+        windowManager.hideWindow();
     });
 
     ipcMain.handle('hide-window', (event) => {
-        const window = windowManager.getContextWindow(event.sender);
-        window?.hide();
+        windowManager.hideWindow();
     });
 
     ipcMain.handle('close-and-open-search', (event) => {
-        windowManager.closeAndOpenSearch(event.sender);
+        // Obsolete in single window, but for compatibility/safety:
+        windowManager.createMainWindow();
     });
 
     ipcMain.handle('close-and-open-partials', (event) => {
-        windowManager.closeAndOpenPartials(event.sender);
+        // Obsolete
+        windowManager.switchToPartials();
     });
 
     // Util Handlers

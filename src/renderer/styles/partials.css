@@ -146,12 +146,33 @@ body.dark .dialog-overlay {
 }
 
 /* Footer with keyboard hints */
-.footer-hint {
+/* Footer Styles */
+.footer {
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border-light);
+  padding: var(--space-2) var(--space-5);
   display: flex;
-  gap: var(--space-4);
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: var(--space-10);
 }
 
-.hint-item {
+.keyboard-hint {
+  opacity: 0.7;
+  line-height: var(--line-height-tight);
+}
+
+.badge-legend {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-tight);
+  flex-shrink: 0;
+}
+
+.legend-item {
   display: flex;
   align-items: center;
   gap: var(--space-1);

@@ -91,7 +91,7 @@ export class SearchView {
       <div class="results" id="results-container"></div>
       <div class="footer">
         <div class="keyboard-hint">
-          ↑↓ Navigate • Enter Select • ${modKey}+N New • ${modKey}+E Edit • ${modKey}+R Delete • ${modKey}+P Partials • Esc Close
+          <span class="kbd">↑↓</span> Navigate • <span class="kbd">Enter</span> Select • <span class="kbd">${modKey}+N</span> New • <span class="kbd">${modKey}+E</span> Edit • <span class="kbd">${modKey}+R</span> Delete • <span class="kbd">${modKey}+P</span> Partials </br> <span class="kbd">Esc</span> Close
         </div>
         <div class="badge-legend">
           <div class="legend-item">

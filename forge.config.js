@@ -73,22 +73,6 @@ module.exports = {
               preload: {
                 js: './src/preload.ts'
               }
-            },
-            {
-              html: './src/renderer/editor/index.html',
-              js: './src/renderer/editor/renderer.ts',
-              name: 'editor_window',
-              preload: {
-                js: './src/preload.ts'
-              }
-            },
-            {
-              html: './src/renderer/partials/index.html',
-              js: './src/renderer/partials/renderer.ts',
-              name: 'partials_window',
-              preload: {
-                js: './src/preload.ts'
-              }
             }
           ]
         }

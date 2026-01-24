@@ -1,68 +1,61 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Partials Browser</title>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <h1>Partials Browser</h1>
-        <div class="search-container">
-          <input 
-            type="text" 
-            id="searchInput" 
-            placeholder="Search partials..." 
-            autofocus
-            class="form-input"
-          />
-        </div>
-        <div class="actions">
-          <button id="newPartialBtn" class="btn btn-primary">New Partial</button>
-          <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
-        </div>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partials Browser</title>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Partials Browser</h1>
+      <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search partials..." autofocus class="form-input" />
       </div>
-      
-      <!-- Input Dialog -->
-      <div id="input-dialog" class="dialog-overlay modal-overlay">
-        <div class="dialog-box modal-dialog">
-          <h3 class="modal-title">New Partial</h3>
-          <div class="modal-content">
-            <p>Enter partial path using dot notation:</p>
-            <input 
-              type="text" 
-              id="dialog-input" 
-              class="dialog-input form-input"
-              placeholder="e.g., tones.friendly or formats.email"
-            >
-          </div>
-          <div class="dialog-buttons modal-actions">
-            <button id="dialog-cancel" class="btn btn-secondary">Cancel</button>
-            <button id="dialog-confirm" class="btn btn-primary">Create</button>
-          </div>
-        </div>
-      </div>
-      
-      <div id="partialsList"></div>
-      
-      <div class="footer">
-        <div class="footer-hint">
-          <div class="hint-item">
-            <span class="kbd">↑↓</span>
-            <span>Navigate</span>
-          </div>
-          <div class="hint-item">
-            <span class="kbd">Enter</span>
-            <span>Edit</span>
-          </div>
-          <div class="hint-item">
-            <span class="kbd">Esc</span>
-            <span>Close</span>
-          </div>
-        </div>
-        <div id="partialCount"></div>
+      <div class="actions">
+        <button id="newPartialBtn" class="btn btn-primary">New Partial</button>
+        <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
       </div>
     </div>
-  </body>
+
+    <!-- Input Dialog -->
+    <div id="input-dialog" class="dialog-overlay modal-overlay">
+      <div class="dialog-box modal-dialog">
+        <h3 class="modal-title">New Partial</h3>
+        <div class="modal-content">
+          <p>Enter partial path using dot notation:</p>
+          <input type="text" id="dialog-input" class="dialog-input form-input"
+            placeholder="e.g., tones.friendly or formats.email">
+        </div>
+        <div class="dialog-buttons modal-actions">
+          <button id="dialog-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="dialog-confirm" class="btn btn-primary">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="partialsList"></div>
+
+    <div class="footer">
+      <div class="footer-hint">
+        <div class="hint-item">
+          <span class="kbd">↑↓</span>
+          <span>Navigate</span>
+        </div>
+        <div class="hint-item">
+          <span class="kbd">Enter</span>
+          <span>Edit</span>
+        </div>
+        <div class="hint-item">
+          <span class="kbd">Esc</span>
+          <span>Close</span>
+        </div>
+      </div>
+      <div id="partialCount"></div>
+    </div>
+  </div>
+</body>
+
 </html>
