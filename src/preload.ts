@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFolderInFilesystem: () => ipcRenderer.invoke('open-folder-in-filesystem'),
   searchPrompts: (query: string) => ipcRenderer.invoke('search-prompts', query),
   getAllPrompts: () => ipcRenderer.invoke('get-all-prompts'),
-  savePrompt: (tag: string, title: string, content: string, existingPath?: string) => 
+  savePrompt: (tag: string, title: string, content: string, existingPath?: string) =>
     ipcRenderer.invoke('save-prompt', tag, title, content, existingPath),
   savePartial: (dotPath: string, content: string, existingPath?: string) =>
     ipcRenderer.invoke('save-partial', dotPath, content, existingPath),
@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   validatePartialContent: (content: string) => ipcRenderer.invoke('validate-partial-content', content),
   validatePartialPath: (dotPath: string) => ipcRenderer.invoke('validate-partial-path', dotPath),
   resolvePartials: (content: string) => ipcRenderer.invoke('resolve-partials', content),
+  getPartialsInFolder: (dotPath: string) => ipcRenderer.invoke('get-partials-in-folder', dotPath),
   openPartialsBrowser: () => ipcRenderer.invoke('open-partials-browser')
 });
 
@@ -75,6 +76,7 @@ declare global {
       validatePartialContent: (content: string) => Promise<{ valid: boolean; error?: string }>;
       validatePartialPath: (dotPath: string) => Promise<{ valid: boolean; error?: string }>;
       resolvePartials: (content: string) => Promise<string>;
+      getPartialsInFolder: (dotPath: string) => Promise<Partial[]>;
       openPartialsBrowser: () => Promise<void>;
     };
   }

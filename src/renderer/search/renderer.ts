@@ -15,7 +15,7 @@ let currentTheme = 'light';
 async function initTheme() {
   currentTheme = await window.electronAPI.getTheme();
   applyTheme(currentTheme);
-  
+
   // Listen for theme changes from other windows
   window.electronAPI.onThemeChanged((theme) => {
     currentTheme = theme;
@@ -45,7 +45,7 @@ async function toggleTheme() {
   currentTheme = newTheme;
   await window.electronAPI.setTheme(newTheme);
   applyTheme(newTheme);
-  
+
   // Restore focus to search input after theme toggle
   const searchInput = document.getElementById('search-input') as HTMLInputElement;
   if (searchInput) {
@@ -109,7 +109,7 @@ function showDeleteConfirmation(prompt: Prompt) {
   // Focus on Cancel button by default
   const cancelBtn = document.getElementById('delete-cancel');
   const confirmBtn = document.getElementById('delete-confirm');
-  
+
   setTimeout(() => cancelBtn?.focus(), 50);
 
   // Cancel handler
@@ -147,14 +147,14 @@ function showDeleteConfirmation(prompt: Prompt) {
 async function deletePrompt(prompt: Prompt) {
   try {
     await window.electronAPI.deletePrompt(prompt.filePath);
-    
+
     // Show success toast
     showToast(`Deleted: ${prompt.title}`, 3000);
-    
+
     // Reload prompts
     await loadPrompts('');
     renderResults();
-    
+
     // Return focus to search input
     const searchInput = document.getElementById('search-input') as HTMLInputElement;
     searchInput?.focus();
@@ -189,7 +189,7 @@ async function updateFolderDisplay() {
   const folderPath = await window.electronAPI.getPromptsFolder();
   const openFolderBtn = document.getElementById('open-folder-btn');
   const workspaceNameEl = document.getElementById('workspace-name');
-  
+
   if (openFolderBtn) {
     if (folderPath) {
       openFolderBtn.title = folderPath;
@@ -197,7 +197,7 @@ async function updateFolderDisplay() {
       openFolderBtn.title = 'No folder selected';
     }
   }
-  
+
   if (workspaceNameEl) {
     if (folderPath) {
       // Extract just the folder name from the path
@@ -214,7 +214,7 @@ function setupEventListeners() {
   const changeFolderBtn = document.getElementById('change-folder-btn') as HTMLButtonElement;
   const createWorkspaceBtn = document.getElementById('create-workspace-btn') as HTMLButtonElement;
   const openFolderBtn = document.getElementById('open-folder-btn') as HTMLButtonElement;
-  
+
   if (changeFolderBtn) {
     changeFolderBtn.addEventListener('click', async () => {
       const newFolder = await window.electronAPI.selectFolder();
@@ -253,10 +253,10 @@ function setupEventListeners() {
       }
     });
   }
-  
+
   if (searchInput) {
     searchInput.focus();
-    
+
     searchInput.addEventListener('input', async (e) => {
       const query = (e.target as HTMLInputElement).value;
       await loadPrompts(query);
@@ -322,7 +322,7 @@ function scrollToSelected() {
 }
 
 async function selectPrompt(prompt: Prompt) {
-  if (prompt.parameters.length > 0) {
+  if (prompt.parameters.length > 0 || (prompt.partialPickers && prompt.partialPickers.length > 0)) {
     // Show parameter dialog
     showParameterDialog(prompt);
   } else {
@@ -333,7 +333,7 @@ async function selectPrompt(prompt: Prompt) {
   }
 }
 
-function showParameterDialog(prompt: Prompt) {
+async function showParameterDialog(prompt: Prompt) {
   const app = document.getElementById('app');
   if (!app) return;
 
@@ -344,18 +344,52 @@ function showParameterDialog(prompt: Prompt) {
   dialogContent.className = 'modal-dialog';
 
   let html = `
-    <h3 class="modal-title">Fill in Parameters</h3>
+    <h3 class="modal-title">Configure Prompt</h3>
     <div class="modal-content">
   `;
 
-  prompt.parameters.forEach(param => {
-    html += `
-      <div class="form-group">
-        <label class="form-label">${param}</label>
-        <input type="text" id="param-${param}" class="form-input" />
-      </div>
-    `;
-  });
+  // 1. Partial Pickers
+  if (prompt.partialPickers && prompt.partialPickers.length > 0) {
+    html += `<div class="section-title" style="font-size: 12px; font-weight: 600; color: #666; margin-bottom: 8px; text-transform: uppercase;">Options</div>`;
+
+    // We need to fetch options for each picker. 
+    // Since this is async but we're building HTML string, we'll do placeholders 
+    // and populate them after appending to DOM, or await before building HTML.
+    // Let's await before building HTML for simplicity.
+
+    for (const picker of prompt.partialPickers) {
+      const options = await window.electronAPI.getPartialsInFolder(picker.path);
+      const defaultOption = picker.defaultPath ? picker.defaultPath : (options.length > 0 ? options[0].path : '');
+
+      html += `
+        <div class="form-group">
+          <label class="form-label">Select ${picker.path}</label>
+          <select id="picker-${picker.path}" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd; background: var(--bg-primary, #fff); color: var(--text-primary, #333);">
+            ${options.map(opt => {
+        const fileName = opt.path.split('.').pop() || opt.path;
+        const isSelected = opt.path === defaultOption ? 'selected' : '';
+        return `<option value="${opt.path}" ${isSelected}>${fileName}</option>`;
+      }).join('')}
+          </select>
+        </div>
+      `;
+    }
+
+    html += `<div style="margin-bottom: 16px;"></div>`;
+  }
+
+  // 2. Parameters
+  if (prompt.parameters.length > 0) {
+    html += `<div class="section-title" style="font-size: 12px; font-weight: 600; color: #666; margin-bottom: 8px; text-transform: uppercase;">Parameters</div>`;
+    prompt.parameters.forEach(param => {
+      html += `
+        <div class="form-group">
+          <label class="form-label">${param}</label>
+          <input type="text" id="param-${param}" class="form-input" />
+        </div>
+      `;
+    });
+  }
 
   html += `
     </div>
@@ -370,12 +404,86 @@ function showParameterDialog(prompt: Prompt) {
   dialog.appendChild(dialogContent);
   app.appendChild(dialog);
 
-  // Copy handler function (Copy with Placeholders behavior)
-  const handleCopy = async () => {
-    // First resolve partials
+  // Helper to construct final content
+  const constructContent = async () => {
+    // 1. Resolve static partials first (this handles {{> static.partial }})
     let content = await window.electronAPI.resolvePartials(prompt.content);
+
+    // 2. Resolve dynamic pickers
+    if (prompt.partialPickers) {
+      for (const picker of prompt.partialPickers) {
+        const select = document.getElementById(`picker-${picker.path}`) as HTMLSelectElement;
+        if (select) {
+          const selectedPath = select.value;
+          const partial = await window.electronAPI.getPartial(selectedPath);
+          if (partial) {
+            // Replace the picker tag with content
+            // Need to handle both regex variations: 
+            // {{> path.* }} AND {{> path.* default }}
+
+            // We'll use a regex that handles the specific picker path
+            // Escape dots for regex
+            const escapedPath = picker.path.replace(/\./g, '\\.');
+
+            // Regex to match {{> path.* (anything)? }}
+            // Note: The previous simple replacement logic won't work easily because 
+            // we need to match the EXACT tag in the content corresponding to this picker.
+            // But verify: prompt.partialPickers contains unique paths? Yes.
+
+            const pickerRegex = new RegExp(`\\{\\{>\\s*${escapedPath}\\.\\*[^}]*\\}\\}`, 'g');
+            content = content.replace(pickerRegex, partial.content);
+          }
+        }
+      }
+    }
+
+    // 3. Replace Parameters
     const params: string[] = [];
-    
+    prompt.parameters.forEach(param => {
+      const input = document.getElementById(`param-${param}`) as HTMLInputElement;
+      const value = input?.value || '';
+
+      // Replace in content
+      const paramRegex = new RegExp(`\\[${param}\\]`, 'g');
+      content = content.replace(paramRegex, value);
+    });
+
+    return content;
+  };
+
+  // Copy handler
+  const handleCopy = async () => {
+    const content = await constructContent();
+    await window.electronAPI.copyToClipboard(content);
+    dialog.remove();
+    window.electronAPI.hideWindow();
+  };
+
+  // "Copy with Placeholders" handler
+  const handleCopyRaw = async () => {
+    // 1. Resolve static partials
+    let content = await window.electronAPI.resolvePartials(prompt.content);
+
+    // 2. Resolve dynamic pickers (we still want to resolve these even in "raw" mode? 
+    // Usually "raw" means keep parameters as [PARAM], but usually we want to fix configuration options.
+    // Let's resolve pickers but keep parameters.)
+    if (prompt.partialPickers) {
+      for (const picker of prompt.partialPickers) {
+        const select = document.getElementById(`picker-${picker.path}`) as HTMLSelectElement;
+        if (select) {
+          const selectedPath = select.value;
+          const partial = await window.electronAPI.getPartial(selectedPath);
+          if (partial) {
+            const escapedPath = picker.path.replace(/\./g, '\\.');
+            const pickerRegex = new RegExp(`\\{\\{>\\s*${escapedPath}\\.\\*[^}]*\\}\\}`, 'g');
+            content = content.replace(pickerRegex, partial.content);
+          }
+        }
+      }
+    }
+
+    // 3. Append parameter values list instead of replacing
+    const params: string[] = [];
     prompt.parameters.forEach(param => {
       const input = document.getElementById(`param-${param}`) as HTMLInputElement;
       const value = input?.value || '';
@@ -395,28 +503,26 @@ function showParameterDialog(prompt: Prompt) {
     window.electronAPI.hideWindow();
   };
 
-  // Add Enter key support to all input fields
-  prompt.parameters.forEach(param => {
-    const input = document.getElementById(`param-${param}`) as HTMLInputElement;
-    if (input) {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          handleCopy();
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          dialog.remove();
-        }
-      });
-    }
+  // Add event listeners for inputs
+  // Enter key support
+  const inputs = dialog.querySelectorAll('input, select');
+  inputs.forEach(input => {
+    input.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Enter') {
+        e.preventDefault();
+        handleCopy();
+      } else if ((e as KeyboardEvent).key === 'Escape') {
+        e.preventDefault();
+        dialog.remove();
+      }
+    });
   });
 
-  // Add Escape key to close dialog
+  // Close with Escape
   dialog.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       dialog.remove();
-      // Return focus to search input for keyboard navigation
       const searchInput = document.getElementById('search-input') as HTMLInputElement;
       searchInput?.focus();
     }
@@ -424,42 +530,19 @@ function showParameterDialog(prompt: Prompt) {
 
   // Focus first input
   setTimeout(() => {
-    const firstInput = document.getElementById(`param-${prompt.parameters[0]}`) as HTMLInputElement;
-    firstInput?.focus();
+    // Try to find first select or input
+    const firstField = dialog.querySelector('select, input') as HTMLElement;
+    firstField?.focus();
   }, 100);
 
-  // Event listeners
+  // Buttons
   document.getElementById('param-cancel')?.addEventListener('click', () => {
     dialog.remove();
-    // Return focus to search input for keyboard navigation
     const searchInput = document.getElementById('search-input') as HTMLInputElement;
     searchInput?.focus();
   });
 
-  document.getElementById('param-copy-raw')?.addEventListener('click', async () => {
-    // Resolve partials but keep parameter placeholders
-    let content = await window.electronAPI.resolvePartials(prompt.content);
-    const params: string[] = [];
-    
-    prompt.parameters.forEach(param => {
-      const input = document.getElementById(`param-${param}`) as HTMLInputElement;
-      const value = input?.value || '';
-      if (value) {
-        params.push(`[${param}] = ${value}`);
-      } else {
-        params.push(`[${param}] = `);
-      }
-    });
-
-    if (params.length > 0) {
-      content += '\n\nReplace the following parameters in the prompt above:\n' + params.join('\n');
-    }
-
-    await window.electronAPI.copyToClipboard(content);
-    dialog.remove();
-    window.electronAPI.hideWindow();
-  });
-
+  document.getElementById('param-copy-raw')?.addEventListener('click', handleCopyRaw);
   document.getElementById('param-copy')?.addEventListener('click', handleCopy);
 }
 
@@ -541,13 +624,13 @@ function renderResults() {
       const prompt = result.prompt;
       const preview = prompt.content.substring(0, 100).replace(/\n/g, ' ');
       const selected = index === selectedIndex ? 'selected' : '';
-      
+
       // Create badges for params and partials
-      const paramBadge = prompt.parameters.length > 0 ? 
+      const paramBadge = prompt.parameters.length > 0 ?
         `<span class="badge badge-param">${prompt.parameters.length}P</span>` : '';
-      const partialsBadge = prompt.partials.length > 0 ? 
+      const partialsBadge = prompt.partials.length > 0 ?
         `<span class="badge badge-partial">${prompt.partials.length}P</span>` : '';
-      
+
       html += `
         <div class="result-item ${selected}" data-index="${index}">
           <div class="result-title">
@@ -580,7 +663,7 @@ function renderResults() {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initialize();
-  
+
   // Add theme toggle listener
   const themeToggle = document.getElementById('themeToggle');
   if (themeToggle) {
@@ -595,7 +678,7 @@ window.addEventListener('focus', async () => {
   if (toastContainer) {
     toastContainer.innerHTML = '';
   }
-  
+
   const searchInput = document.getElementById('search-input') as HTMLInputElement;
   if (searchInput) {
     searchInput.value = ''; // Clear search

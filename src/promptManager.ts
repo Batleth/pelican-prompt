@@ -99,9 +99,9 @@ export class PromptManager {
   }
 
   public async savePrompt(
-    tag: string, 
-    title: string, 
-    content: string, 
+    tag: string,
+    title: string,
+    content: string,
     existingPath?: string
   ): Promise<string> {
     return await this.promptService.savePrompt(tag, title, content, existingPath);
@@ -109,6 +109,7 @@ export class PromptManager {
 
   public reloadFromDisk(): void {
     this.promptService.loadPrompts();
+    this.partialService.loadPartials();
     this.searchService.rebuildIndex(this.promptService.getAllPrompts());
   }
 
@@ -152,6 +153,10 @@ export class PromptManager {
 
   public resolvePartials(content: string): string {
     return this.partialService.resolvePartials(content);
+  }
+
+  public getPartialsInFolder(dotPath: string): Partial[] {
+    return this.partialService.getPartialsInFolder(dotPath);
   }
 
   // Cleanup

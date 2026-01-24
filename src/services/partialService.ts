@@ -31,31 +31,36 @@ export class PartialService {
       return;
     }
 
+    // console.log(`Reading partials dir: ${dir}`);
+    if (!fs.existsSync(dir)) return;
+
     const entries = fs.readdirSync(dir, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-      
+
       if (entry.isDirectory()) {
         this.loadPartialsRecursive(fullPath, depth + 1);
       } else if (entry.isFile() && entry.name.endsWith('.md')) {
         try {
+          // console.log(`Found partial file: ${fullPath}`);
           const content = fs.readFileSync(fullPath, 'utf-8').trim();
-          
+
           // Skip empty partials
           if (!content) {
             console.warn(`Skipping empty partial: ${fullPath}`);
             continue;
           }
-          
+
           // Validate partials don't contain other partials
           if (/\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g.test(content)) {
             console.error(`Partial cannot contain other partials: ${fullPath}`);
             continue;
           }
-          
+
           // Convert file path to dot notation
           const dotPath = this.filePathToDotPath(fullPath);
+          // console.log(`Loaded partial: ${dotPath}`);
           this.partials.set(dotPath, { content, filePath: fullPath });
         } catch (error) {
           console.error(`Error loading partial ${fullPath}:`, error);
@@ -70,6 +75,7 @@ export class PartialService {
   private filePathToDotPath(filePath: string): string {
     const relativePath = path.relative(this.partialsFolder, filePath);
     const pathWithoutExt = relativePath.replace(/\.md$/, '');
+    // Ensure we use dots instead of system separator
     return pathWithoutExt.split(path.sep).join('.');
   }
 
@@ -87,14 +93,14 @@ export class PartialService {
   public handlePartialChange(filePath: string): void {
     try {
       const content = fs.readFileSync(filePath, 'utf-8').trim();
-      
+
       if (!content || /\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g.test(content)) {
         // Remove invalid partial
         const dotPath = this.filePathToDotPath(filePath);
         this.partials.delete(dotPath);
         return;
       }
-      
+
       const dotPath = this.filePathToDotPath(filePath);
       this.partials.set(dotPath, { content, filePath });
     } catch (error) {
@@ -139,10 +145,10 @@ export class PartialService {
   public searchPartials(query: string): Partial[] {
     const lowerQuery = query.toLowerCase();
     const partials: Partial[] = [];
-    
+
     for (const [dotPath, data] of this.partials.entries()) {
-      if (dotPath.toLowerCase().includes(lowerQuery) || 
-          data.content.toLowerCase().includes(lowerQuery)) {
+      if (dotPath.toLowerCase().includes(lowerQuery) ||
+        data.content.toLowerCase().includes(lowerQuery)) {
         partials.push({
           path: dotPath,
           content: data.content,
@@ -150,7 +156,7 @@ export class PartialService {
         });
       }
     }
-    
+
     return partials.sort((a, b) => a.path.localeCompare(b.path));
   }
 
@@ -172,15 +178,15 @@ export class PartialService {
    */
   public validatePartialContent(content: string): { valid: boolean; error?: string } {
     const trimmed = content.trim();
-    
+
     if (!trimmed) {
       return { valid: false, error: 'Partial content cannot be empty' };
     }
-    
+
     if (/\{\{>\s*([a-zA-Z0-9_.]+)\s*\}\}/g.test(trimmed)) {
       return { valid: false, error: 'Partials cannot contain other partials ({{> }} syntax not allowed)' };
     }
-    
+
     return { valid: true };
   }
 
@@ -210,7 +216,7 @@ export class PartialService {
       const folderPath = pathSegments.length > 1
         ? path.join(this.partialsFolder, ...pathSegments.slice(0, -1))
         : this.partialsFolder;
-      
+
       const filename = `${pathSegments[pathSegments.length - 1]}.md`;
       const newPath = path.join(folderPath, filename);
       const normalizedNewPath = path.normalize(newPath);
@@ -267,7 +273,7 @@ export class PartialService {
    */
   public resolvePartials(content: string): string {
     const partialRegex = /\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
-    
+
     return content.replace(partialRegex, (match, dotPath) => {
       const partial = this.partials.get(dotPath);
       if (partial) {
@@ -276,6 +282,34 @@ export class PartialService {
         return `MISSING PARTIAL ${dotPath}`;
       }
     });
+  }
+
+  /**
+   * Get all partials in a specific folder (direct children)
+   */
+  public getPartialsInFolder(dotPath: string): Partial[] {
+    // console.log(`getPartialsInFolder called for: ${dotPath}`);
+    // console.log(`Total partials loaded: ${this.partials.size}`);
+
+    const partials: Partial[] = [];
+    const prefix = dotPath + '.';
+
+    for (const [path, data] of this.partials.entries()) {
+      if (path.startsWith(prefix)) {
+        // Check if it's a direct child
+        const remaining = path.substring(prefix.length);
+        if (!remaining.includes('.')) {
+          partials.push({
+            path: path,
+            content: data.content,
+            filePath: data.filePath
+          });
+        }
+      }
+    }
+
+    // console.log(`Found ${partials.length} partials in ${dotPath}`);
+    return partials.sort((a, b) => a.path.localeCompare(b.path));
   }
 
   /**

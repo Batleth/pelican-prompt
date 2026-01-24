@@ -6,6 +6,7 @@ export interface Prompt {
   filePath: string;
   parameters: string[];
   partials: string[];
+  partialPickers: { path: string; defaultPath?: string }[];
 }
 
 export interface SearchResult {

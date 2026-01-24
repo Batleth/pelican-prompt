@@ -19,7 +19,7 @@ let promptManager: PromptManager | null = null;
 function migrateUserData() {
   const oldPath = path.join(app.getPath('appData'), 'promptlib');
   const newPath = app.getPath('userData'); // pelican-prompt
-  
+
   if (fs.existsSync(oldPath) && !fs.existsSync(path.join(newPath, 'config.json'))) {
     try {
       fs.mkdirSync(newPath, { recursive: true });
@@ -28,7 +28,7 @@ function migrateUserData() {
         const srcPath = path.join(oldPath, file);
         const destPath = path.join(newPath, file);
         const stat = fs.statSync(srcPath);
-        
+
         if (stat.isFile()) {
           fs.copyFileSync(srcPath, destPath);
         }
@@ -77,7 +77,7 @@ const createSearchWindow = (): void => {
       searchWindow.hide();
     }
   });
-  
+
   searchWindow.once('ready-to-show', () => {
     searchWindow?.show();
     searchWindow?.focus();
@@ -118,7 +118,7 @@ const createEditorWindow = (prompt?: Prompt): void => {
 
   editorWindow.on('closed', () => {
     editorWindow = null;
-    
+
     // Return focus to partials window if it's open
     if (partialsWindow && !partialsWindow.isDestroyed()) {
       partialsWindow.focus();
@@ -164,7 +164,7 @@ const createPartialsWindow = (): void => {
 
 app.whenReady().then(() => {
   migrateUserData();
-  
+
   // Set dock icon for macOS (only when packaged, as dev mode doesn't have the icon in the right location)
   if (process.platform === 'darwin' && app.isPackaged) {
     const iconPath = path.join(__dirname, '../../build/icons/pelicanprompt.icns');
@@ -172,7 +172,7 @@ app.whenReady().then(() => {
       app.dock.setIcon(iconPath);
     }
   }
-  
+
   // Register global shortcut
   globalShortcut.register('CommandOrControl+K', () => {
     createSearchWindow();
@@ -183,7 +183,7 @@ app.whenReady().then(() => {
   if (promptsFolder) {
     promptManager = new PromptManager(promptsFolder);
   }
-  
+
   // Open the search window immediately on startup
   createSearchWindow();
 
@@ -198,26 +198,26 @@ app.whenReady().then(() => {
 
       if (!result.canceled && result.filePaths.length > 0) {
         const folder = result.filePaths[0];
-        
+
         // Verify folder is accessible
         try {
           fs.accessSync(folder, fs.constants.R_OK | fs.constants.W_OK);
         } catch (err) {
           throw new Error('Selected folder is not accessible. Please check permissions.');
         }
-        
+
         // Validate workspace structure - check for prompts and partials folders
         const promptsFolder = path.join(folder, 'prompts');
         const partialsFolder = path.join(folder, 'partials');
-        
+
         const hasPrompts = fs.existsSync(promptsFolder);
         const hasPartials = fs.existsSync(partialsFolder);
-        
+
         if (!hasPrompts || !hasPartials) {
           const missing = [];
           if (!hasPrompts) missing.push('prompts');
           if (!hasPartials) missing.push('partials');
-          
+
           // Create the missing folders
           if (!hasPrompts) {
             fs.mkdirSync(promptsFolder, { recursive: true });
@@ -225,25 +225,25 @@ app.whenReady().then(() => {
           if (!hasPartials) {
             fs.mkdirSync(partialsFolder, { recursive: true });
           }
-          
+
           console.log(`Created missing workspace folders: ${missing.join(', ')}`);
         }
-        
+
         store.set('promptsFolder', folder);
-        
+
         if (promptManager) {
           promptManager.destroy();
         }
-        
+
         try {
           promptManager = new PromptManager(folder);
         } catch (err: any) {
           throw new Error(`Failed to initialize folder: ${err.message}`);
         }
-        
+
         // Show the search window after successfully selecting workspace
         createSearchWindow();
-        
+
         return folder;
       }
       return null;
@@ -263,15 +263,15 @@ app.whenReady().then(() => {
 
       if (!result.canceled && result.filePaths.length > 0) {
         const baseFolder = result.filePaths[0];
-        
+
         // Create workspace folder structure
         const promptsFolder = path.join(baseFolder, 'prompts');
         const partialsFolder = path.join(baseFolder, 'partials');
-        
+
         // Create directories
         fs.mkdirSync(promptsFolder, { recursive: true });
         fs.mkdirSync(partialsFolder, { recursive: true });
-        
+
         // Create example prompt with parameters
         const examplePromptPath = path.join(promptsFolder, 'com', 'mail');
         fs.mkdirSync(examplePromptPath, { recursive: true });
@@ -290,26 +290,26 @@ Welcome to [COMPANY]! We're excited to have you on board.
 Best regards,
 [SENDER_NAME]`;
         fs.writeFileSync(examplePromptFile, examplePromptContent, 'utf-8');
-        
+
         // Create example partial
         const examplePartialPath = path.join(partialsFolder, 'greetings');
         fs.mkdirSync(examplePartialPath, { recursive: true });
         const examplePartialFile = path.join(examplePartialPath, 'formal.md');
         const examplePartialContent = `We look forward to working with you and supporting your success in your new role.`;
         fs.writeFileSync(examplePartialFile, examplePartialContent, 'utf-8');
-        
+
         // Save to store and initialize
         store.set('promptsFolder', baseFolder);
-        
+
         if (promptManager) {
           promptManager.destroy();
         }
-        
+
         promptManager = new PromptManager(baseFolder);
-        
+
         // Show the search window after successfully creating workspace
         createSearchWindow();
-        
+
         return baseFolder;
       }
       return null;
@@ -329,11 +329,11 @@ Best regards,
       if (!folder) {
         throw new Error('No prompts folder selected');
       }
-      
+
       if (!fs.existsSync(folder)) {
         throw new Error('Prompts folder no longer exists');
       }
-      
+
       const result = await shell.openPath(folder);
       if (result) {
         throw new Error(`Failed to open folder: ${result}`);
@@ -412,7 +412,7 @@ Best regards,
 
   ipcMain.handle('open-editor', (_event, prompt?: Prompt) => {
     createEditorWindow(prompt);
-    
+
     // Hide search window
     if (searchWindow && !searchWindow.isDestroyed()) {
       searchWindow.hide();
@@ -467,6 +467,13 @@ Best regards,
       return content;
     }
     return promptManager.resolvePartials(content);
+  });
+
+  ipcMain.handle('get-partials-in-folder', (_event, dotPath: string) => {
+    if (!promptManager) {
+      return [];
+    }
+    return promptManager.getPartialsInFolder(dotPath);
   });
 
   ipcMain.handle('open-partials-browser', () => {
@@ -529,7 +536,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   // Unregister all shortcuts
   globalShortcut.unregisterAll();
-  
+
   // Clean up prompt manager
   if (promptManager) {
     promptManager.destroy();
