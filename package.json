@@ -8,7 +8,9 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "keywords": [
     "electron",
@@ -28,11 +30,15 @@
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron-forge/plugin-webpack": "^7.11.1",
     "@electron/fuses": "^1.8.0",
+    "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
     "@typescript-eslint/parser": "^8.53.1",
     "css-loader": "^7.1.2",
     "electron": "40.0.0",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
     "style-loader": "^4.0.0",
+    "ts-jest": "^29.4.6",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "webpack": "^5.104.1"

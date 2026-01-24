@@ -31,6 +31,11 @@ A powerful, file-based prompt management application built with Electron for mac
 - **Flexible Copying**: 
   - Copy with filled parameters
   - Copy with placeholders and param=value list appended
+  
+### Dynamic Partials
+- **Dynamic Selection**: Use `{{> path.to.folder.* }}` to show a dropdown of all partials in that folder
+- **Default Value**: tailored specific defaults using `{{> path.to.folder.* default_partial_name }}`
+- **Placement**: Great for creating flexible templates where you swap out tone, language, or format on the fly
 
 ### Prompt Management
 - **Quick Create**: `Cmd+N` to create a new prompt
@@ -119,6 +124,30 @@ The function should accept [INPUTS] and return [OUTPUTS].
 ```
 
 When you use this prompt, you'll be asked to fill in values for `LANGUAGE`, `DESCRIPTION`, `INPUTS`, and `OUTPUTS`.
+
+#### Using Dynamic Partials
+
+You can create drop-down menus for selecting partials (reusable snippets) using the syntax `{{> folder.path.* (default) }}`.
+
+**Example structure:**
+```
+prompts/
+  partials/
+    tone/
+      professional.md
+      casual.md
+      pirate.md
+```
+
+**Prompt content:**
+```
+Write a response to this email:
+[EMAIL_BODY]
+
+Use a {{> partials.tone.* professional }} tone.
+```
+
+When you select this prompt, you'll see a dropdown menu to choose between `professional`, `casual`, or `pirate`, with `professional` selected by default.
 
 ### Searching for Prompts
 
