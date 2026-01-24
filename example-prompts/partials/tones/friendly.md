@@ -1,1 +1,0 @@
-Use a friendly but professional tone. Be warm and approachable while maintaining professionalism. Use a conversational style that builds rapport.

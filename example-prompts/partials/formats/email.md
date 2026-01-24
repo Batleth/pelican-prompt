@@ -1,1 +1,12 @@
-Format as a standard email with: clear subject line, appropriate greeting, well-structured body with paragraphs, and professional closing with signature placeholder.
+Subject: [Short, descriptive subject line based on topic]
+
+Hi [Name],
+
+[Opening line setting context]
+
+[Body paragraph(s) details]
+
+[Call to action or next steps]
+
+[Closing]
+[Your Name]

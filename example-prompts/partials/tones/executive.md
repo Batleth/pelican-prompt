@@ -1,0 +1,1 @@
+Be extremely brief and high-level. Focus on bottom-line impact, strategic value, and clear decisions. Avoid details unless absolutely necessary. Use bullet points where possible to respect the reader's time.

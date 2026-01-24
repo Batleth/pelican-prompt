@@ -1,1 +1,0 @@
-End with a casual closing such as "Thanks," "Cheers," or "Best," followed by the sender's first name.
