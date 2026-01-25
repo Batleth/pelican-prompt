@@ -133,11 +133,13 @@ export class SearchView {
                 const partialsBadge = prompt.partials.length > 0 ?
                     `<span class="badge badge-partial">${prompt.partials.length}P</span>` : '';
 
+                const formattedTag = this.formatTag(prompt.tag);
+
                 html += `
           <div class="result-item ${selected}" data-index="${index}">
             <div class="result-title">
               <div class="badge-container">
-                ${prompt.tag ? `<span class="badge badge-primary result-tag">${prompt.tag}</span>` : ''}
+                ${prompt.tag ? `<span class="badge badge-primary result-tag">${formattedTag}</span>` : ''}
                 ${paramBadge}
                 ${partialsBadge}
               </div>
@@ -407,5 +409,13 @@ export class SearchView {
             const firstField = dialog.querySelector('select:not([disabled]), input') as HTMLElement;
             firstField?.focus();
         }, 100);
+    }
+
+    formatTag(tag: string): string {
+        if (!tag) return '';
+        // Split by hyphen, capitalize each part, join with '>'
+        return tag.split('-')
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' > ');
     }
 }

@@ -14,59 +14,46 @@ export class EditorView {
     const content = currentPrompt?.content || '';
     const isExistingPartial = currentPrompt?.filePath && isPartial;
 
-    // Different layout for partials vs prompts
-    let formHtml = '';
-
+    // Calculate the path value for the input
+    // For Partials: title is the path (e.g. "tones.professional")
+    // For Prompts: combine tag and title (e.g. tag "com-mail" + title "welcome" -> "com.mail.welcome")
+    let pathValue = '';
     if (isPartial) {
-      const readonlyAttr = isExistingPartial ? 'readonly style="background: #f5f5f5;"' : '';
-      const pathHint = isExistingPartial
-        ? 'Dot notation path for the partial (read-only)'
-        : 'Enter dot notation path (e.g., tones.urgent, formats.email)';
-
-      formHtml = `
-        <div class="form-group">
-          <label for="title-input">Partial Path</label>
-          <input type="text" id="title-input" class="form-input" value="${title}" placeholder="tones.urgent" ${readonlyAttr} />
-          <div class="form-hint">${pathHint}</div>
-        </div>
-        <input type="hidden" id="tag-input" value="" />
-        <div class="section-divider"></div>
-        <div id="param-info" class="param-info" style="display: none;"></div>
-        <div class="form-group content-group">
-          <label for="content-textarea">Content</label>
-          <textarea id="content-textarea" class="form-textarea" placeholder="Enter the partial content here...
-
-Note: Partials cannot contain other partials (no {{> }} syntax allowed).">${content}</textarea>
-        </div>
-      `;
+      pathValue = title;
     } else {
-      formHtml = `
-        <div class="metadata-grid">
-          <div class="form-group">
-            <label for="tag-input">Tag</label>
-            <input type="text" id="tag-input" class="form-input" value="${tag}" placeholder="com-mail" />
-            <div class="form-hint">Hierarchical tag using hyphens (e.g., com-mail-formal, code-python-async). Max 5 levels.</div>
-          </div>
-          <div class="form-group">
-            <label for="title-input">Title</label>
-            <input type="text" id="title-input" class="form-input" value="${title}" placeholder="My Prompt Title" />
-            <div class="form-hint">Descriptive name for your prompt</div>
-          </div>
-        </div>
-        <div class="section-divider"></div>
-        <div id="param-info" class="param-info" style="display: none;"></div>
-        <div class="form-group content-group">
-          <label for="content-textarea">Content</label>
-          <textarea id="content-textarea" class="form-textarea" placeholder="Enter your prompt here...
-
-You can use parameters like [PARAM_NAME] that will be replaced when using the prompt.
-You can also reference partials like {{> formats.email}} to reuse common content.">${content}</textarea>
-        </div>
-      `;
+      if (tag && title) {
+        pathValue = `${tag.replace(/-/g, '.')}.${title}`;
+      } else if (title) {
+        pathValue = title; // Should not happen for valid prompts but fallback
+      }
     }
 
+    const readonlyAttr = isExistingPartial ? 'readonly style="background: #f5f5f5;"' : '';
+    const pathHint = isExistingPartial
+      ? 'Dot notation path (read-only)'
+      : isPartial
+        ? 'Enter dot notation path (e.g. tones.urgent)'
+        : 'Enter dot notation path (e.g. work.email.draft)';
+
+    const label = isPartial ? 'Partial Path' : 'Prompt Path';
     const headerTitle = isPartial ? 'Partial Editor' : 'Prompt Editor';
     const saveBtnText = isPartial ? 'Save Partial' : 'Save Prompt';
+
+    const formHtml = `
+        <div class="form-group">
+          <label for="title-input">${label}</label>
+          <input type="text" id="title-input" class="form-input" value="${pathValue}" placeholder="e.g. work.email.draft" ${readonlyAttr} />
+          <div class="form-hint">${pathHint}</div>
+        </div>
+        <!-- Hidden tag input no longer needed for UI but keeping ID unique from partials if needed? No, logic handles it. -->
+        <div class="section-divider"></div>
+        <div id="param-info" class="param-info" style="display: none;"></div>
+        <div class="form-group content-group">
+          <label for="content-textarea">Content</label>
+          <textarea id="content-textarea" class="form-textarea" placeholder="Enter content here...
+${isPartial ? 'Note: Partials cannot contain other partials.' : 'Use [PARAM_NAME] for parameters and {{> partial.path}} for partials.'}">${content}</textarea>
+        </div>
+    `;
 
     app.innerHTML = `
       <div class="editor-layout" id="editor">
@@ -86,11 +73,7 @@ You can also reference partials like {{> formats.email}} to reuse common content
 
     // Initial focus
     if (!currentPrompt) {
-      if (isPartial) {
-        document.getElementById('title-input')?.focus();
-      } else {
-        document.getElementById('tag-input')?.focus();
-      }
+      document.getElementById('title-input')?.focus();
     } else {
       document.getElementById('content-textarea')?.focus();
     }
@@ -144,8 +127,7 @@ You can also reference partials like {{> formats.email}} to reuse common content
 
   getFormData() {
     return {
-      tag: (document.getElementById('tag-input') as HTMLInputElement)?.value.trim() || '',
-      title: (document.getElementById('title-input') as HTMLInputElement)?.value.trim() || '',
+      path: (document.getElementById('title-input') as HTMLInputElement)?.value.trim() || '',
       content: (document.getElementById('content-textarea') as HTMLTextAreaElement)?.value.trim() || ''
     };
   }

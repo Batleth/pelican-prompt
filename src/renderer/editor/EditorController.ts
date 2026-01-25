@@ -8,7 +8,6 @@ export class EditorController {
     private isSaving: boolean = false;
     private autocompletePartials: Partial[] = [];
     private autocompleteSelectedIndex: number = 0;
-    private autocompleteSelectedIndex: number = 0;
     private isAutocompleteVisible: boolean = false;
     private isPathAutocomplete: boolean = false;
     private pathAutocompleteSuggestions: string[] = [];
@@ -164,28 +163,51 @@ export class EditorController {
     }
 
     async handlePathAutocomplete(e: Event) {
-        if (!this.isPartial) return;
-
         const input = e.target as HTMLInputElement;
         const value = input.value;
 
-        // If empty or already has a dot (maybe we stop suggesting after dot? or suggest files?)
-        // User asked for "suggestions of the existing paths like tone, formats".
-        // Let's assume we suggest top-level folders if no dot is present.
-        if (!value || value.includes('.')) {
+        if (!value) {
             this.hideAutocomplete();
             return;
         }
 
-        const allPartials = await window.electronAPI.getAllPartials();
-        // Extract unique local roots (before first dot)
-        const roots = new Set<string>();
-        allPartials.forEach(p => {
-            const parts = p.path.split('.');
-            if (parts.length > 0) roots.add(parts[0]);
-        });
+        const lastDotIndex = value.lastIndexOf('.');
+        const prefix = lastDotIndex !== -1 ? value.substring(0, lastDotIndex + 1) : '';
 
-        const suggestions = Array.from(roots).filter(r => r.toLowerCase().startsWith(value.toLowerCase())).sort();
+        let suggestions: string[] = [];
+
+        const options = new Set<string>();
+
+        if (this.isPartial) {
+            const allPartials = await window.electronAPI.getAllPartials();
+            allPartials.forEach(p => {
+                if (p.path.toLowerCase().startsWith(prefix.toLowerCase())) {
+                    const suffix = p.path.substring(prefix.length);
+                    const parts = suffix.split('.');
+                    if (parts.length > 0 && parts[0]) {
+                        options.add(prefix + parts[0]);
+                    }
+                }
+            });
+        } else {
+            const allPrompts = await window.electronAPI.getAllPrompts();
+            allPrompts.forEach(p => {
+                if (p.tag) {
+                    const dotTag = p.tag.replace(/-/g, '.');
+                    if (dotTag.toLowerCase().startsWith(prefix.toLowerCase())) {
+                        const suffix = dotTag.substring(prefix.length);
+                        const parts = suffix.split('.');
+                        if (parts.length > 0 && parts[0]) {
+                            options.add(prefix + parts[0]);
+                        }
+                    }
+                }
+            });
+        }
+
+        suggestions = Array.from(options)
+            .filter(r => r.toLowerCase().startsWith(value.toLowerCase()))
+            .sort();
 
         if (suggestions.length > 0) {
             this.pathAutocompleteSuggestions = suggestions;
@@ -285,33 +307,57 @@ export class EditorController {
         const data = this.view.getFormData();
 
         // Validation
-        if (!data.title || !data.content) {
+        if (!data.path || !data.content) {
             this.view.showToast('error', 'Missing Fields', 'Please fill in all required fields.');
             return;
         }
 
+        let tag = '';
+        let title = '';
+
         if (!this.isPartial) {
-            if (!data.tag) {
-                this.view.showToast('error', 'Missing Tag', 'Please enter a tag.');
+            // Parse path into tag and title
+            const lastDotIndex = data.path.lastIndexOf('.');
+            if (lastDotIndex === -1) {
+                this.view.showToast('error', 'Invalid Format', 'Prompt path must follow dot notation (e.g. category.name).');
                 return;
             }
-            if (!/^[a-zA-Z0-9_-]+$/.test(data.tag)) {
-                this.view.showToast('error', 'Invalid Tag', 'Tag can only contain letters, numbers, underscores, and hyphens.');
+
+            const tagPart = data.path.substring(0, lastDotIndex);
+            title = data.path.substring(lastDotIndex + 1);
+
+            // Convert dot notation back to hyphens for storage
+            tag = tagPart.replace(/\./g, '-');
+
+            if (!tag) {
+                this.view.showToast('error', 'Missing Tag', 'Please include a category (e.g. work.email).');
                 return;
             }
-            if (data.tag.split('-').length > 5) {
-                this.view.showToast('error', 'Tag Too Deep', 'Max 5 levels.');
+            if (!title) {
+                this.view.showToast('error', 'Missing Title', 'Please include a prompt name.');
                 return;
             }
-            if (!/^[a-zA-Z0-9_\s-]+$/.test(data.title)) {
+
+            if (!/^[a-zA-Z0-9_-]+$/.test(tag)) {
+                this.view.showToast('error', 'Invalid Characters', 'Tag can only contain letters, numbers, underscores, and hyphens (dots in input).');
+                return;
+            }
+            if (tag.split('-').length > 5) {
+                this.view.showToast('error', 'Tag Too Deep', 'Max 5 levels allowed.');
+                return;
+            }
+            if (!/^[a-zA-Z0-9_\s-]+$/.test(title)) {
                 this.view.showToast('error', 'Invalid Title', 'Title contains invalid characters.');
                 return;
             }
         } else {
-            if (!/^[a-zA-Z0-9_.-]+$/.test(data.title)) {
+            // Partial: title is the full path
+            title = data.path;
+            if (!/^[a-zA-Z0-9_.-]+$/.test(title)) {
                 this.view.showToast('error', 'Invalid Partial Path', 'Invalid characters in path.');
                 return;
             }
+            // Partials don't use tag
         }
 
         this.isSaving = true;
@@ -321,9 +367,9 @@ export class EditorController {
             const existingPath = this.currentPrompt?.filePath;
 
             if (this.isPartial) {
-                await window.electronAPI.savePartial(data.title, data.content, existingPath);
+                await window.electronAPI.savePartial(title, data.content, existingPath);
             } else {
-                await window.electronAPI.savePrompt(data.tag, data.title, data.content, existingPath);
+                await window.electronAPI.savePrompt(tag, title, data.content, existingPath);
             }
 
             this.view.showToast('success', 'Saved!', 'Saved successfully.', 1500);
