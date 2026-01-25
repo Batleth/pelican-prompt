@@ -4,11 +4,17 @@ export class SearchView {
     private searchInput: HTMLInputElement | null = null;
     private resultsContainer: HTMLElement | null = null;
     private themeToggle: HTMLElement | null = null;
+    private closeBtn: HTMLElement | null = null;
 
     constructor() {
         this.searchInput = document.getElementById('search-input') as HTMLInputElement;
         this.resultsContainer = document.getElementById('results-container');
         this.themeToggle = document.getElementById('themeToggle');
+        this.closeBtn = document.getElementById('closeBtn');
+
+        this.closeBtn?.addEventListener('click', () => {
+            window.electronAPI.hideWindow();
+        });
     }
 
     getSearchInput(): HTMLInputElement | null {

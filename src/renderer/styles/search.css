@@ -57,6 +57,35 @@ body {
   opacity: 1;
 }
 
+.close-btn {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-lg);
+  padding: var(--space-1);
+  opacity: 0.9;
+  color: var(--color-danger);
+  /* Always red */
+  transition: opacity var(--transition-base);
+  -webkit-app-region: no-drag;
+  line-height: 1;
+}
+
+.theme-toggle {
+  right: var(--space-10);
+  /* Move theme toggle to the left of close button */
+}
+
+.close-btn:hover {
+  opacity: 1;
+  color: var(--color-danger);
+  /* Optional: make it red on hover */
+}
+
 #app {
   display: flex;
   flex-direction: column;

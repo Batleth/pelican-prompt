@@ -1,18 +1,23 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'">
     <title>Pelican Prompt - Search</title>
 </head>
+
 <body>
     <div class="container">
         <div class="drag-handle">
             <div class="drag-handle-indicator"></div>
             <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">🌙</button>
+            <button class="close-btn" id="closeBtn" title="Close">✕</button>
         </div>
         <div id="app"></div>
     </div>
     <div class="toast-container" id="toast-container"></div>
 </body>
+
 </html>
