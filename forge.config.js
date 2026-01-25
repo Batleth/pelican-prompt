@@ -30,18 +30,17 @@ module.exports = {
       name: '@electron-forge/maker-zip',
       platforms: ['win32'],
     },
-    // Note: Windows installer (.exe) must be built on Windows
-    // Uncomment this when building on Windows:
-    // {
-    //   name: '@electron-forge/maker-squirrel',
-    //   config: {
-    //     name: 'PelicanPrompt',
-    //     authors: 'Pelican Prompt',
-    //     description: 'A file-based prompt management application',
-    //     setupIcon: './build/icons/pelicanprompt.ico',
-    //   },
-    //   platforms: ['win32'],
-    // },
+    // Windows installer (.exe)
+    {
+      name: '@electron-forge/maker-squirrel',
+      config: {
+        name: 'PelicanPrompt',
+        authors: 'Pelican Prompt',
+        description: 'A file-based prompt management application',
+        setupIcon: './build/icons/pelicanprompt.ico',
+      },
+      platforms: ['win32'],
+    },
   ],
   plugins: [
     {
