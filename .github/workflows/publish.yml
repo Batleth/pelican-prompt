@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - 'v*' # Runs when you push a tag like v1.0.0
+  workflow_dispatch: # This adds the manual "Run workflow" button
 
 jobs:
   publish:
