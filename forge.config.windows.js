@@ -14,8 +14,20 @@ module.exports = {
     appCategoryType: 'public.app-category.productivity',
   },
   rebuildConfig: {},
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: 'Batleth',
+          name: 'pelican-prompt'
+        },
+        prerelease: false,
+        draft: true // Set to true so you can check it before users see it
+      }
+    }
+  ],
   makers: [
-    // Windows installer (only works on Windows)
     {
       name: '@electron-forge/maker-squirrel',
       config: {
@@ -24,12 +36,10 @@ module.exports = {
         description: 'A file-based prompt management application',
         setupIcon: './build/icons/pelicanprompt.ico',
       },
-    },
-    // Windows ZIP (portable version)
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['win32'],
-    },
+    }, // Windows installer
+    { name: '@electron-forge/maker-zip' },      // ZIP
+    { name: '@electron-forge/maker-deb' },      // Linux
+    { name: '@electron-forge/maker-dmg' },      // macOS
   ],
   plugins: [
     {

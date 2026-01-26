@@ -1,0 +1,29 @@
+name: Build and Publish
+on:
+  push:
+    tags:
+      - 'v*' # Runs when you push a tag like v1.0.0
+
+jobs:
+  publish:
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Publish Release
+        run: npm run publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
