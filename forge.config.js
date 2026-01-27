@@ -41,6 +41,30 @@ module.exports = {
       },
       platforms: ['win32'],
     },
+    // Linux DEB package
+    {
+      name: '@electron-forge/maker-deb',
+      config: {
+        icon: './build/icons/pelicanprompt.png',
+        options: {
+          maintainer: 'Pelican Prompt',
+          homepage: 'https://github.com/Batleth/pelican-prompt'
+        }
+      },
+      platforms: ['linux'],
+    },
+    // Linux RPM package
+    {
+      name: '@electron-forge/maker-rpm',
+      config: {
+        icon: './build/icons/pelicanprompt.png',
+        options: {
+          maintainer: 'Pelican Prompt',
+          homepage: 'https://github.com/Batleth/pelican-prompt'
+        }
+      },
+      platforms: ['linux'],
+    },
   ],
   plugins: [
     {

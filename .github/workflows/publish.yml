@@ -24,6 +24,12 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
+      - name: Install Linux packaging tools
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm fakeroot
+
       - name: Publish Release
         run: npm run make
         env:
