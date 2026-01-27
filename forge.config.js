@@ -10,6 +10,19 @@ module.exports = {
     appCategoryType: 'public.app-category.productivity',
   },
   rebuildConfig: {},
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: 'Batleth',
+          name: 'prompt-pelican'
+        },
+        prerelease: false,
+        draft: true // Set to true so you can check it before users see it
+      }
+    }
+  ],
   makers: [
     // Mac DMG installer
     {
