@@ -1,5 +1,6 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const { PublisherGithub } = require('@electron-forge/publisher-github');
 
 module.exports = {
   packagerConfig: {
@@ -11,17 +12,16 @@ module.exports = {
   },
   rebuildConfig: {},
   publishers: [
-    {
-      name: '@electron-forge/publisher-github',
-      config: {
-        repository: {
-          owner: 'Batleth',
-          name: 'prompt-pelican'
-        },
-        prerelease: false,
-        draft: true // Set to true so you can check it before users see it
-      }
-    }
+    new PublisherGithub({
+      repository: {
+        owner: 'Batleth', // e.g. 'I590501' or your org
+        name: 'pelican-prompt', // repository name
+      },
+      draft: true,
+      prerelease: false,
+      authToken: process.env.GITHUB_TOKEN,
+      tag: process.env.GITHUB_REF_NAME, // uses the pushed tag like v1.0.0
+    }),
   ],
   makers: [
     // Mac DMG installer

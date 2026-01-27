@@ -1,4 +1,6 @@
 name: Build and Publish
+permissions:
+  contents: write
 on:
   push:
     tags:
@@ -15,6 +17,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # ensure tags are available
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
