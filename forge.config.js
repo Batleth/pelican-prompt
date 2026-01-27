@@ -4,7 +4,7 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     icon: './build/icons/pelicanprompt',
-    executableName: 'Pelican Prompt',
+    executableName: 'pelican-prompt',
     asar: true,
     appBundleId: 'com.pelicanprompt.app',
     appCategoryType: 'public.app-category.productivity',
