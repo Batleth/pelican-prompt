@@ -2,10 +2,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '../App';
-import '../styles/design-system.css';
-import '../styles/search.css';
-import '../styles/editor.css';
-import '../styles/partials.css';
+import '../global.css';
+
 
 import { setTheme } from '@ui5/webcomponents-base/dist/config/Theme.js';
 import '@ui5/webcomponents-react/dist/Assets';

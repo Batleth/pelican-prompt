@@ -282,7 +282,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                         style={{ width: '100%' }}
                         valueState={errorMessage && !path ? 'Negative' : 'None'}
                     />
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--sapContent_LabelColor)', marginTop: '4px' }}>
                         {pathHint}
                     </div>
                 </div>
@@ -297,8 +297,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                         placeholder={isPartial
                             ? "Partial content..."
                             : "Prompt content...\n\nUse [PARAM_NAME] for parameters\nUse {{> partial.path}} for partials (autocomplete shows after typing {{>)"}
-                        style={{ flex: 1, height: '100%', minHeight: '250px' }}
-                        growing={true}
+                        style={{ flex: 1, height: '100%', minHeight: '250px', width: '100%' }}
                         valueState={errorMessage && !content ? 'Negative' : 'None'}
                     />
 
@@ -308,10 +307,10 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                             position: 'absolute',
                             top: autocompletePos.top,
                             left: autocompletePos.left,
-                            background: 'var(--color-bg-primary)',
-                            border: '1px solid var(--color-border-medium)',
+                            background: 'var(--sapList_Background)',
+                            border: '1px solid var(--sapList_BorderColor)',
                             borderRadius: '4px',
-                            boxShadow: 'var(--shadow-lg)',
+                            boxShadow: 'var(--sapContent_Shadow2)',
                             maxHeight: '200px',
                             overflow: 'auto',
                             zIndex: 1000,
@@ -330,7 +329,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                                     onMouseEnter={() => setAutocompleteIndex(idx)}
                                 >
                                     <div style={{ fontWeight: 500 }}>{partial.path}</div>
-                                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                                    <div style={{ fontSize: '11px', color: 'var(--sapContent_LabelColor)', marginTop: '2px' }}>
                                         {partial.content.substring(0, 60).replace(/\n/g, ' ')}...
                                     </div>
                                 </div>

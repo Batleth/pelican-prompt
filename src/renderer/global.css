@@ -1,0 +1,43 @@
+html,
+body,
+#app {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: var(--sapFontFamily, "72", "72full", Arial, Helvetica, sans-serif);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Keyboard Hint Style */
+.kbd {
+    display: inline-block;
+    border: 1px solid var(--sapContent_ForegroundBorderColor, #ccc);
+    border-radius: 4px;
+    padding: 2px 6px;
+    background-color: var(--sapButton_Background, #f0f0f0);
+    color: var(--sapTextColor, #333);
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.85em;
+    line-height: 1;
+    margin: 0 2px;
+    box-shadow: 0 1px 0 var(--sapContent_ForegroundBorderColor, #ccc);
+    min-width: 1em;
+    text-align: center;
+}
+
+/* Scrollbar styling for Webkit */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background-color: var(--sapScrollBar_FaceColor, #888);
+}
+
+::-webkit-scrollbar-track {
+    background-color: transparent;
+}
