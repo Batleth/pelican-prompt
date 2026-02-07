@@ -4,6 +4,7 @@ import { Prompt, SearchResult, Partial } from '../../types';
 import {
     Input,
     List,
+    ListItemCustom,
     ListItemStandard,
     Button,
     Title,
@@ -13,8 +14,24 @@ import {
     Bar,
     FlexBox,
     Select,
-    Option
+    Option,
+    Page,
+    Icon,
+    Text,
+    ResponsivePopover
 } from '@ui5/webcomponents-react';
+import '@ui5/webcomponents-icons/dist/search.js';
+import '@ui5/webcomponents-icons/dist/palette.js';
+import '@ui5/webcomponents-icons/dist/decline.js';
+import '@ui5/webcomponents-icons/dist/navigation-down-arrow.js';
+import '@ui5/webcomponents-icons/dist/navigation-up-arrow.js';
+import '@ui5/webcomponents-icons/dist/add.js';
+import '@ui5/webcomponents-icons/dist/edit.js';
+import '@ui5/webcomponents-icons/dist/delete.js';
+import '@ui5/webcomponents-icons/dist/copy.js';
+import '@ui5/webcomponents-icons/dist/inspection.js';
+import '@ui5/webcomponents-icons/dist/cancel.js';
+import '@ui5/webcomponents-icons/dist/open-folder.js';
 
 interface SearchAppProps {
     onEditPrompt: (prompt: Prompt) => void;
@@ -39,6 +56,8 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
 
     const toastRef = useRef<any>(null);
     const listRef = useRef<HTMLDivElement>(null);
+    const themeBtnRef = useRef<any>(null);
+    const [themeMenuOpen, setThemeMenuOpen] = useState(false);
 
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const modKey = isMac ? 'Cmd' : 'Ctrl';
@@ -90,7 +109,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
     }, [loadPrompts, onWindowFocus]);
 
     // Scroll to selected item using ref
-    const selectedItemRef = useRef<HTMLElement | null>(null);
+    const selectedItemRef = useRef<any | null>(null);
 
     useEffect(() => {
         if (selectedItemRef.current) {
@@ -235,6 +254,17 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
         loadPrompts('');
     };
 
+    const handleThemeSelect = async (e: any) => {
+        const item = e.detail.item;
+        // redundancy: check dataset, generic attribute, etc.
+        const theme = item.getAttribute('data-theme') || item.dataset.theme;
+        console.log('Selecting theme:', theme);
+        if (theme) {
+            await window.electronAPI.setTheme(theme);
+            setThemeMenuOpen(false);
+        }
+    };
+
     // Global keyboard handler
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -296,105 +326,136 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-            {/* Header with folder info */}
-            <div style={{ padding: '1rem', marginBottom: '0', flexShrink: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <div>
-                        <span style={{ color: 'var(--color-text-secondary)', fontSize: '11px' }}>Current Workspace: </span>
-                        <span style={{ fontWeight: 500 }}>{folderPath ? folderPath.split(/[\\/]/).pop() : 'None'}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--sapBackgroundColor)' }}>
+            {/* Header Content */}
+            <Bar
+                design="Header"
+                style={{ WebkitAppRegion: 'drag' } as any}
+                startContent={
+                    <FlexBox alignItems="Center">
+                        <Label style={{ marginRight: '5px' }}>Workspace:</Label>
+                        <Text style={{ fontWeight: 500 }}>{folderPath ? folderPath.split(/[\\/]/).pop() : 'None'}</Text>
+                    </FlexBox>
+                }
+                endContent={
+                    <div style={{ display: 'flex', WebkitAppRegion: 'no-drag' } as any}>
+                        <Button design="Transparent" icon="open-folder" onClick={() => window.electronAPI.openFolderInFilesystem()} tooltip="Open Folder" />
+                        <Button design="Transparent" icon="add" onClick={handleCreateWorkspace} tooltip="Create Workspace" />
+                        <Button design="Transparent" icon="edit" onClick={handleSelectFolder} tooltip="Change Workspace" />
+                        <div style={{ width: '1px', background: 'var(--ui5-v2-3-0-list-item-border-color)', margin: '0 4px' }}></div>
+                        <Button ref={themeBtnRef} design="Transparent" icon="palette" onClick={() => setThemeMenuOpen(true)} tooltip="Select Theme" />
+                        <Button design="Transparent" icon="decline" onClick={() => window.electronAPI.hideWindow()} tooltip="Close" style={{ color: 'var(--sapNegativeColor)' }} />
                     </div>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                        <Button design="Transparent" onClick={() => window.electronAPI.openFolderInFilesystem()}>Open Folder</Button>
-                        <Button design="Transparent" onClick={handleCreateWorkspace}>Create Workspace</Button>
-                        <Button design="Transparent" onClick={handleSelectFolder}>Change Workspace</Button>
-                    </div>
-                </div>
+                }
+            />
+            <ResponsivePopover
+                open={themeMenuOpen}
+                opener={themeBtnRef.current}
+                onClose={() => setThemeMenuOpen(false)}
+            >
+                <List onItemClick={handleThemeSelect} selectionMode="Single">
+                    <ListItemStandard data-theme="sap_horizon">Morning Horizon (Light)</ListItemStandard>
+                    <ListItemStandard data-theme="sap_horizon_dark">Evening Horizon (Dark)</ListItemStandard>
+                    <ListItemStandard data-theme="sap_horizon_hcb">Horizon High Contrast Black</ListItemStandard>
+                    <ListItemStandard data-theme="sap_horizon_hcw">Horizon High Contrast White</ListItemStandard>
+                    <ListItemStandard data-theme="sap_fiori_3">Quartz Light</ListItemStandard>
+                    <ListItemStandard data-theme="sap_fiori_3_dark">Quartz Dark</ListItemStandard>
+                    <ListItemStandard data-theme="sap_fiori_3_hcb">Quartz High Contrast Black</ListItemStandard>
+                    <ListItemStandard data-theme="sap_fiori_3_hcw">Quartz High Contrast White</ListItemStandard>
+                </List>
+            </ResponsivePopover>
+            <div style={{ padding: '0.5rem 1rem', flexShrink: 0 }}>
                 <Input
+                    icon={<Icon name="search" />}
                     value={query}
                     onInput={handleSearch}
-                    placeholder={`Search prompts... (e.g., 'tag:com-mail', 'tag:code*', or 'meeting')`}
+                    placeholder="Search prompts..."
                     style={{ width: '100%' }}
                 />
             </div>
 
             {/* Results list */}
-            <div ref={listRef} style={{ flex: 1, overflow: 'auto', minHeight: 0, padding: '0 1rem' }}>
+            <div ref={listRef} style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
                 {prompts.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-secondary)' }}>
-                        <h3>No prompts found</h3>
-                        <p>Press {modKey}+N to create your first prompt</p>
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                        <Title level="H5" style={{ color: 'var(--sapContent_LabelColor)' }}>No prompts found</Title>
+                        <Text style={{ color: 'var(--sapContent_LabelColor)' }}>Press {modKey}+N to create your first prompt</Text>
                     </div>
                 ) : (
-                    <List selectionMode="Single">
+                    <List selectionMode="Single" style={{ height: '100%' }}>
                         {prompts.map((res, idx) => (
-                            <ListItemStandard
+                            <ListItemCustom
+                                ref={idx === selectedIndex ? selectedItemRef : undefined}
                                 key={res.prompt.filePath}
-                                ref={idx === selectedIndex ? (el: any) => { selectedItemRef.current = el; } : undefined}
-                                style={{
-                                    background: idx === selectedIndex ? 'var(--sapList_SelectionBackgroundColor)' : 'transparent',
-                                    borderLeft: idx === selectedIndex ? '3px solid var(--sapBrandColor)' : '3px solid transparent'
-                                }}
-                                description={res.prompt.content.substring(0, 100).replace(/\n/g, ' ') + '...'}
+                                selected={idx === selectedIndex}
                                 onClick={() => {
                                     setSelectedIndex(idx);
                                     handleSelectPrompt(res.prompt);
                                 }}
-                                selected={idx === selectedIndex}
+                                style={{
+                                    borderLeft: idx === selectedIndex ? '3px solid var(--sapBrandColor)' : '3px solid transparent',
+                                    paddingLeft: idx === selectedIndex ? '13px' : '16px' // Adjust padding to compensate for border
+                                }}
                             >
-                                <FlexBox alignItems="Center" style={{ gap: '8px' }}>
-                                    {res.prompt.tag && (
-                                        <span style={{
-                                            background: 'var(--sapBrandColor)',
-                                            color: 'white',
-                                            padding: '2px 8px',
-                                            borderRadius: '12px',
-                                            fontSize: '11px',
-                                            fontWeight: 500
-                                        }}>
-                                            {formatTag(res.prompt.tag)}
-                                        </span>
-                                    )}
-                                    {res.prompt.parameters.length > 0 && (
-                                        <span style={{
-                                            background: '#FF9500',
-                                            color: 'white',
-                                            padding: '2px 6px',
-                                            borderRadius: '10px',
-                                            fontSize: '10px'
-                                        }}>
-                                            {res.prompt.parameters.length}P
-                                        </span>
-                                    )}
-                                    {res.prompt.partials.length > 0 && (
-                                        <span style={{
-                                            background: '#34C759',
-                                            color: 'white',
-                                            padding: '2px 6px',
-                                            borderRadius: '10px',
-                                            fontSize: '10px'
-                                        }}>
-                                            {res.prompt.partials.length}P
-                                        </span>
-                                    )}
-                                    <span style={{ fontWeight: 500 }}>{res.prompt.title}</span>
-                                </FlexBox>
-                            </ListItemStandard>
+                                <div style={{ display: 'flex', flexDirection: 'column', width: '100%', padding: '0.5rem 0' }}>
+                                    <FlexBox alignItems="Center" style={{ gap: '8px', marginBottom: '4px' }}>
+                                        {res.prompt.tag && (
+                                            <span style={{
+                                                background: 'var(--sapBrandColor)',
+                                                color: 'var(--sapContent_ContrastTextColor)',
+                                                padding: '2px 8px',
+                                                borderRadius: '12px',
+                                                fontSize: '11px',
+                                                fontWeight: 500
+                                            }}>
+                                                {formatTag(res.prompt.tag)}
+                                            </span>
+                                        )}
+                                        {res.prompt.parameters.length > 0 && (
+                                            <span style={{
+                                                background: 'var(--sapIndicationColor_03)', // Orange-ish
+                                                color: 'white',
+                                                padding: '2px 6px',
+                                                borderRadius: '10px',
+                                                fontSize: '10px'
+                                            }}>
+                                                {res.prompt.parameters.length}P
+                                            </span>
+                                        )}
+                                        {res.prompt.partials.length > 0 && (
+                                            <span style={{
+                                                background: 'var(--sapIndicationColor_08)', // Green-ish
+                                                color: 'white',
+                                                padding: '2px 6px',
+                                                borderRadius: '10px',
+                                                fontSize: '10px'
+                                            }}>
+                                                {res.prompt.partials.length}P
+                                            </span>
+                                        )}
+                                        <Text style={{ fontWeight: 'bold', color: 'var(--sapTextColor)' }}>{res.prompt.title}</Text>
+                                    </FlexBox>
+                                    <Text style={{ fontSize: '12px', color: 'var(--sapContent_LabelColor)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {res.prompt.content.substring(0, 100).replace(/\n/g, ' ')}...
+                                    </Text>
+                                </div>
+                            </ListItemCustom>
                         ))}
                     </List>
                 )}
             </div>
 
-            {/* Footer with keyboard hints */}
-            <div className="footer">
-                <span><kbd className="kbd">↑↓</kbd> Navigate</span>
-                <span><kbd className="kbd">Enter</kbd> Select</span>
-                <span><kbd className="kbd">{modKey}+N</kbd> New</span>
-                <span><kbd className="kbd">{modKey}+E</kbd> Edit</span>
-                <span><kbd className="kbd">{modKey}+R</kbd> Delete</span>
-                <span><kbd className="kbd">{modKey}+P</kbd> Partials</span>
-                <span><kbd className="kbd">Esc</kbd> Close</span>
-            </div>
+            <Bar design="Footer">
+                <FlexBox style={{ gap: '8px', opacity: 0.8, width: '100%' }} wrap="Wrap" justifyContent="Center">
+                    <Label style={{ fontSize: '11px' }}>↑↓ Navigate</Label>
+                    <Label style={{ fontSize: '11px' }}>Enter Select</Label>
+                    <Label style={{ fontSize: '11px' }}>{modKey}+N New</Label>
+                    <Label style={{ fontSize: '11px' }}>{modKey}+E Edit</Label>
+                    <Label style={{ fontSize: '11px' }}>{modKey}+R Delete</Label>
+                    <Label style={{ fontSize: '11px' }}>{modKey}+P Partials</Label>
+                    <Label style={{ fontSize: '11px' }}>Esc Close</Label>
+                </FlexBox>
+            </Bar>
 
             {/* Delete confirmation dialog */}
             <Dialog

@@ -234,110 +234,123 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
         : 'Dot notation path (e.g., work.email.draft) - last part becomes title, rest becomes tag';
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '1rem', position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--sapBackgroundColor)' }}>
             {/* Header */}
-            <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-                <Title level="H3">{isPartial ? (isNew ? 'New Partial' : 'Edit Partial') : (isNew ? 'New Prompt' : 'Edit Prompt')}</Title>
-                <FlexBox alignItems={FlexBoxAlignItems.Center}>
-                    <Button design="Emphasized" onClick={handleSave} disabled={saving}>
-                        {saving ? 'Saving...' : 'Save'}
-                    </Button>
-                    <Button design="Transparent" onClick={onClose} style={{ marginLeft: '0.5rem' }}>Cancel</Button>
-                </FlexBox>
-            </div>
+            <Bar
+                design="Header"
+                style={{ WebkitAppRegion: 'drag', flexShrink: 0 } as any}
+                startContent={
+                    <Title level="H3" style={{ WebkitAppRegion: 'no-drag' } as any}>
+                        {isPartial ? (isNew ? 'New Partial' : 'Edit Partial') : (isNew ? 'New Prompt' : 'Edit Prompt')}
+                    </Title>
+                }
+                endContent={
+                    <FlexBox alignItems={FlexBoxAlignItems.Center} style={{ WebkitAppRegion: 'no-drag' } as any}>
+                        <Button design="Emphasized" onClick={handleSave} disabled={saving}>
+                            {saving ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button design="Transparent" onClick={onClose} style={{ marginLeft: '0.5rem' }}>Cancel</Button>
+                    </FlexBox>
+                }
+            />
 
-            {/* Error message */}
-            {errorMessage && (
-                <MessageStrip
-                    design="Negative"
-                    onClose={() => setErrorMessage(null)}
-                    style={{ marginBottom: '1rem' }}
-                >
-                    {errorMessage}
-                </MessageStrip>
-            )}
+            {/* Content Wrapper */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
+                {/* Error message */}
+                {errorMessage && (
+                    <MessageStrip
+                        design="Negative"
+                        onClose={() => setErrorMessage(null)}
+                        style={{ marginBottom: '1rem' }}
+                    >
+                        {errorMessage}
+                    </MessageStrip>
+                )}
 
-            {/* Path field */}
-            <div style={{ marginBottom: '1rem', flexShrink: 0 }}>
-                <Label>{isPartial ? 'Partial Path' : 'Prompt Path'}</Label>
-                <Input
-                    value={path}
-                    onInput={(e: any) => {
-                        setPath(e.target.value);
-                        setErrorMessage(null); // Clear error when user types
-                    }}
-                    placeholder={isPartial ? 'e.g., tones.urgent' : 'e.g., work.email.draft'}
-                    readonly={!isNew && !!prompt?.filePath}
-                    style={{ width: '100%' }}
-                    valueState={errorMessage && !path ? 'Negative' : 'None'}
-                />
-                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                    {pathHint}
+                {/* Path field */}
+                <div style={{ marginBottom: '1rem', flexShrink: 0 }}>
+                    <Label>{isPartial ? 'Partial Path' : 'Prompt Path'}</Label>
+                    <Input
+                        value={path}
+                        onInput={(e: any) => {
+                            setPath(e.target.value);
+                            setErrorMessage(null); // Clear error when user types
+                        }}
+                        placeholder={isPartial ? 'e.g., tones.urgent' : 'e.g., work.email.draft'}
+                        readonly={!isNew && !!prompt?.filePath}
+                        style={{ width: '100%' }}
+                        valueState={errorMessage && !path ? 'Negative' : 'None'}
+                    />
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                        {pathHint}
+                    </div>
+                </div>
+
+                {/* Content textarea with autocomplete */}
+                <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: '300px' }}>
+                    <Label>Content</Label>
+                    <TextArea
+                        value={content}
+                        onInput={handleContentInput}
+                        onKeyDown={handleContentKeyDown}
+                        placeholder={isPartial
+                            ? "Partial content..."
+                            : "Prompt content...\n\nUse [PARAM_NAME] for parameters\nUse {{> partial.path}} for partials (autocomplete shows after typing {{>)"}
+                        style={{ flex: 1, height: '100%', minHeight: '250px' }}
+                        growing={true}
+                        valueState={errorMessage && !content ? 'Negative' : 'None'}
+                    />
+
+                    {/* Autocomplete dropdown */}
+                    {autocompleteVisible && autocompleteItems.length > 0 && (
+                        <div style={{
+                            position: 'absolute',
+                            top: autocompletePos.top,
+                            left: autocompletePos.left,
+                            background: 'var(--color-bg-primary)',
+                            border: '1px solid var(--color-border-medium)',
+                            borderRadius: '4px',
+                            boxShadow: 'var(--shadow-lg)',
+                            maxHeight: '200px',
+                            overflow: 'auto',
+                            zIndex: 1000,
+                            minWidth: '300px'
+                        }}>
+                            {autocompleteItems.map((partial, idx) => (
+                                <div
+                                    key={partial.filePath}
+                                    style={{
+                                        padding: '8px 12px',
+                                        cursor: 'pointer',
+                                        background: idx === autocompleteIndex ? 'var(--sapList_SelectionBackgroundColor)' : 'transparent',
+                                        borderLeft: idx === autocompleteIndex ? '3px solid var(--sapBrandColor)' : '3px solid transparent'
+                                    }}
+                                    onClick={() => insertPartial(partial)}
+                                    onMouseEnter={() => setAutocompleteIndex(idx)}
+                                >
+                                    <div style={{ fontWeight: 500 }}>{partial.path}</div>
+                                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                                        {partial.content.substring(0, 60).replace(/\n/g, ' ')}...
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Content textarea with autocomplete */}
-            <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: '300px' }}>
-                <Label>Content</Label>
-                <TextArea
-                    value={content}
-                    onInput={handleContentInput}
-                    onKeyDown={handleContentKeyDown}
-                    placeholder={isPartial
-                        ? "Partial content..."
-                        : "Prompt content...\n\nUse [PARAM_NAME] for parameters\nUse {{> partial.path}} for partials (autocomplete shows after typing {{>)"}
-                    style={{ flex: 1, height: '100%', minHeight: '250px' }}
-                    growing={true}
-                    valueState={errorMessage && !content ? 'Negative' : 'None'}
-                />
-
-                {/* Autocomplete dropdown */}
-                {autocompleteVisible && autocompleteItems.length > 0 && (
-                    <div style={{
-                        position: 'absolute',
-                        top: autocompletePos.top,
-                        left: autocompletePos.left,
-                        background: 'var(--color-bg-primary)',
-                        border: '1px solid var(--color-border-medium)',
-                        borderRadius: '4px',
-                        boxShadow: 'var(--shadow-lg)',
-                        maxHeight: '200px',
-                        overflow: 'auto',
-                        zIndex: 1000,
-                        minWidth: '300px'
-                    }}>
-                        {autocompleteItems.map((partial, idx) => (
-                            <div
-                                key={partial.filePath}
-                                style={{
-                                    padding: '8px 12px',
-                                    cursor: 'pointer',
-                                    background: idx === autocompleteIndex ? 'var(--sapList_SelectionBackgroundColor)' : 'transparent',
-                                    borderLeft: idx === autocompleteIndex ? '3px solid var(--sapBrandColor)' : '3px solid transparent'
-                                }}
-                                onClick={() => insertPartial(partial)}
-                                onMouseEnter={() => setAutocompleteIndex(idx)}
-                            >
-                                <div style={{ fontWeight: 500 }}>{partial.path}</div>
-                                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-                                    {partial.content.substring(0, 60).replace(/\n/g, ' ')}...
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
             {/* Footer with keyboard hints */}
-            <div className="footer">
-                <span><kbd className="kbd">{modKey}+S</kbd> Save</span>
-                <span><kbd className="kbd">Esc</kbd> Cancel</span>
-                {!isPartial && (
-                    <span style={{ marginLeft: '8px', color: 'var(--color-text-secondary)' }}>
-                        Tip: Type <kbd className="kbd">{'{{>'}</kbd> to insert partials
-                    </span>
-                )}
-            </div>
+            <Bar design="Footer">
+                <div style={{ display: 'flex', gap: '1rem', color: 'var(--sapContent_LabelColor)', fontSize: '0.875rem' }}>
+                    <span><kbd className="kbd">{modKey}+S</kbd> Save</span>
+                    <span><kbd className="kbd">Esc</kbd> Cancel</span>
+                    {!isPartial && (
+                        <span style={{ marginLeft: '8px', color: 'var(--sapContent_LabelColor)' }}>
+                            Tip: Type <kbd className="kbd">{'{{>'}</kbd> to insert partials
+                        </span>
+                    )}
+                </div>
+            </Bar>
         </div>
     );
 };

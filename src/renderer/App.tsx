@@ -46,7 +46,7 @@ export const App = () => {
 
     return (
         <ThemeProvider>
-            <div className="app-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="app-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--sapBackgroundColor)' }}>
                 {view === 'SEARCH' && (
                     <SearchApp
                         onEditPrompt={handleNavigateToEditor}
