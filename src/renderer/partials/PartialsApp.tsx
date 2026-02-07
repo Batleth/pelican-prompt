@@ -13,10 +13,12 @@ import {
     Bar,
     FlexBox,
     Icon,
-    ListItemCustom
+    ListItemCustom,
+    Text
 } from '@ui5/webcomponents-react';
 import '@ui5/webcomponents-icons/dist/nav-back.js';
 import '@ui5/webcomponents-icons/dist/search.js';
+import '@ui5/webcomponents-icons/dist/add.js';
 
 interface PartialsAppProps {
     onEditPartial: (partial: Partial) => void;
@@ -31,7 +33,8 @@ export const PartialsApp: React.FC<PartialsAppProps> = ({ onEditPartial, onClose
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [partialToDelete, setPartialToDelete] = useState<Partial | null>(null);
     const toastRef = useRef<any>(null);
-    const selectedItemRef = useRef<HTMLElement | null>(null);
+    const selectedItemRef = useRef<any | null>(null);
+    const listRef = useRef<HTMLDivElement>(null);
 
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const modKey = isMac ? 'Cmd' : 'Ctrl';
@@ -158,7 +161,7 @@ export const PartialsApp: React.FC<PartialsAppProps> = ({ onEditPartial, onClose
                     <Button design="Transparent" icon="nav-back" onClick={onClose} tooltip="Back to Search" style={{ WebkitAppRegion: 'no-drag' } as any} />
                 }
                 endContent={
-                    <Button design="Emphasized" onClick={handleNewPartial} style={{ WebkitAppRegion: 'no-drag' } as any}>New Partial</Button>
+                    <Button design="Transparent" icon="add" onClick={handleNewPartial} tooltip="New Partial" style={{ WebkitAppRegion: 'no-drag' } as any} />
                 }
             >
                 <Title level="H3" style={{ WebkitAppRegion: 'no-drag' } as any}>Partials Library</Title>
@@ -173,13 +176,13 @@ export const PartialsApp: React.FC<PartialsAppProps> = ({ onEditPartial, onClose
                 />
             </div>
 
-            {/* List */}
+            {/* Results list */}
             {loading ? <BusyIndicator active /> : (
-                <div style={{ flex: 1, overflow: 'auto', minHeight: 0, padding: '0 1rem' }}>
+                <div ref={listRef} style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
                     {partials.length === 0 ? (
-                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                            <h3>No partials found</h3>
-                            <p>Press {modKey}+N to create your first partial</p>
+                        <div style={{ textAlign: 'center', padding: '2rem' }}>
+                            <Title level="H5" style={{ color: 'var(--sapContent_LabelColor)' }}>No partials found</Title>
+                            <Text style={{ color: 'var(--sapContent_LabelColor)' }}>Press {modKey}+N to create your first partial</Text>
                         </div>
                     ) : (
                         <List selectionMode="Single">
@@ -197,7 +200,7 @@ export const PartialsApp: React.FC<PartialsAppProps> = ({ onEditPartial, onClose
                                         onEditPartial(p);
                                     }}
                                 >
-                                    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', padding: '0.5rem 0' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                                             <div style={{ fontWeight: 600 }}>{p.path}</div>
                                         </div>
@@ -208,8 +211,9 @@ export const PartialsApp: React.FC<PartialsAppProps> = ({ onEditPartial, onClose
                                 </ListItemCustom>
                             ))}
                         </List>
-                    )}
-                </div>
+                    )
+                    }
+                </div >
             )}
 
             {/* Footer with keyboard hints */}
@@ -253,6 +257,6 @@ export const PartialsApp: React.FC<PartialsAppProps> = ({ onEditPartial, onClose
             </Dialog>
 
             <Toast ref={toastRef}>Copied to clipboard</Toast>
-        </div>
+        </div >
     );
 };

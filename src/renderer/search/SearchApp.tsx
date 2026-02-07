@@ -18,7 +18,8 @@ import {
     Page,
     Icon,
     Text,
-    ResponsivePopover
+    ResponsivePopover,
+    ObjectStatus
 } from '@ui5/webcomponents-react';
 import '@ui5/webcomponents-icons/dist/search.js';
 import '@ui5/webcomponents-icons/dist/palette.js';
@@ -400,38 +401,19 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                                 <div style={{ display: 'flex', flexDirection: 'column', width: '100%', padding: '0.5rem 0' }}>
                                     <FlexBox alignItems="Center" style={{ gap: '8px', marginBottom: '4px' }}>
                                         {res.prompt.tag && (
-                                            <span style={{
-                                                background: 'var(--sapBrandColor)',
-                                                color: 'var(--sapContent_ContrastTextColor)',
-                                                padding: '2px 8px',
-                                                borderRadius: '12px',
-                                                fontSize: '11px',
-                                                fontWeight: 500
-                                            }}>
+                                            <ObjectStatus state="Information" style={{ marginRight: '4px', fontWeight: 'bold' }}>
                                                 {formatTag(res.prompt.tag)}
-                                            </span>
+                                            </ObjectStatus>
                                         )}
                                         {res.prompt.parameters.length > 0 && (
-                                            <span style={{
-                                                background: 'var(--sapIndicationColor_03)', // Orange-ish
-                                                color: 'white',
-                                                padding: '2px 6px',
-                                                borderRadius: '10px',
-                                                fontSize: '10px'
-                                            }}>
+                                            <ObjectStatus state="Critical" style={{ marginRight: '4px', fontWeight: 'bold' }}>
                                                 {res.prompt.parameters.length}P
-                                            </span>
+                                            </ObjectStatus>
                                         )}
                                         {res.prompt.partials.length > 0 && (
-                                            <span style={{
-                                                background: 'var(--sapIndicationColor_08)', // Green-ish
-                                                color: 'white',
-                                                padding: '2px 6px',
-                                                borderRadius: '10px',
-                                                fontSize: '10px'
-                                            }}>
+                                            <ObjectStatus state="Positive" style={{ marginRight: '4px', fontWeight: 'bold' }}>
                                                 {res.prompt.partials.length}P
-                                            </span>
+                                            </ObjectStatus>
                                         )}
                                         <Text style={{ fontWeight: 'bold', color: 'var(--sapTextColor)' }}>{res.prompt.title}</Text>
                                     </FlexBox>
@@ -446,15 +428,15 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
             </div>
 
             <Bar design="Footer">
-                <FlexBox style={{ gap: '8px', opacity: 0.8, width: '100%' }} wrap="Wrap" justifyContent="Center">
-                    <Label style={{ fontSize: '11px' }}>↑↓ Navigate</Label>
-                    <Label style={{ fontSize: '11px' }}>Enter Select</Label>
-                    <Label style={{ fontSize: '11px' }}>{modKey}+N New</Label>
-                    <Label style={{ fontSize: '11px' }}>{modKey}+E Edit</Label>
-                    <Label style={{ fontSize: '11px' }}>{modKey}+R Delete</Label>
-                    <Label style={{ fontSize: '11px' }}>{modKey}+P Partials</Label>
-                    <Label style={{ fontSize: '11px' }}>Esc Close</Label>
-                </FlexBox>
+                <div style={{ display: 'flex', gap: '1rem', color: 'var(--sapContent_LabelColor)', fontSize: '0.875rem' }}>
+                    <span><kbd className="kbd">↑↓</kbd> Navigate</span>
+                    <span><kbd className="kbd">Enter</kbd> Select</span>
+                    <span><kbd className="kbd">{modKey}+N</kbd> New</span>
+                    <span><kbd className="kbd">{modKey}+E</kbd> Edit</span>
+                    <span><kbd className="kbd">{modKey}+R</kbd> Delete</span>
+                    <span><kbd className="kbd">{modKey}+P</kbd> Partials</span>
+                    <span><kbd className="kbd">Esc</kbd> Close</span>
+                </div>
             </Bar>
 
             {/* Delete confirmation dialog */}
@@ -509,7 +491,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     {/* Partial Pickers */}
                     {paramDialogPrompt?.partialPickers && paramDialogPrompt.partialPickers.length > 0 && (
                         <>
-                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--sapContent_LabelColor)', marginBottom: '8px', textTransform: 'uppercase' }}>
                                 Options
                             </div>
                             {paramDialogPrompt.partialPickers.map(picker => (
@@ -540,7 +522,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     {/* Parameters */}
                     {paramDialogPrompt?.parameters && paramDialogPrompt.parameters.length > 0 && (
                         <>
-                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--sapContent_LabelColor)', marginBottom: '8px', textTransform: 'uppercase' }}>
                                 Parameters
                             </div>
                             {paramDialogPrompt.parameters.map(param => (

@@ -13,6 +13,9 @@ import {
     Bar,
     MessageStrip
 } from '@ui5/webcomponents-react';
+import '@ui5/webcomponents-icons/dist/nav-back.js';
+import '@ui5/webcomponents-icons/dist/save.js';
+import '@ui5/webcomponents-icons/dist/decline.js';
 
 interface EditorAppProps {
     prompt: Prompt | null;
@@ -246,10 +249,8 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                 }
                 endContent={
                     <FlexBox alignItems={FlexBoxAlignItems.Center} style={{ WebkitAppRegion: 'no-drag' } as any}>
-                        <Button design="Emphasized" onClick={handleSave} disabled={saving}>
-                            {saving ? 'Saving...' : 'Save'}
-                        </Button>
-                        <Button design="Transparent" onClick={onClose} style={{ marginLeft: '0.5rem' }}>Cancel</Button>
+                        <Button design="Transparent" icon="save" onClick={handleSave} disabled={saving} tooltip="Save" />
+                        <Button design="Transparent" icon="decline" onClick={onClose} tooltip="Cancel" style={{ marginLeft: '0.5rem', color: 'var(--sapNegativeColor)' }} />
                     </FlexBox>
                 }
             />
