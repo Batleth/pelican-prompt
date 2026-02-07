@@ -1,0 +1,19 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "jsx": "react-jsx"
+    },
+    "include": [
+        "src/renderer.d.ts",
+        "src/renderer/**/*",
+        "src/types.ts",
+        "src/preload.ts"
+    ],
+    "exclude": [
+        "**/__tests__",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx"
+    ]
+}

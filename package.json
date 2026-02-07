@@ -33,6 +33,9 @@
     "@electron-forge/publisher-github": "^7.11.1",
     "@electron/fuses": "^1.8.0",
     "@types/jest": "^30.0.0",
+    "@types/lunr": "^2.3.7",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
     "@typescript-eslint/parser": "^8.53.1",
     "css-loader": "^7.1.2",
@@ -46,9 +49,18 @@
     "webpack": "^5.104.1"
   },
   "dependencies": {
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.6.2",
+    "@ui5/webcomponents": "^2.19.1",
+    "@ui5/webcomponents-fiori": "^2.19.1",
+    "@ui5/webcomponents-icons": "^2.19.1",
+    "@ui5/webcomponents-react": "^2.19.0",
     "chokidar": "^5.0.0",
     "electron-squirrel-startup": "^1.0.1",
     "electron-store": "^11.0.2",
-    "lunr": "^2.3.9"
+    "lunr": "^2.3.9",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-refresh": "^0.18.0",
+    "react-router-dom": "^7.13.0"
   }
 }

@@ -64,24 +64,8 @@ module.exports = {
           entryPoints: [
             {
               html: './src/renderer/search/index.html',
-              js: './src/renderer/search/renderer.ts',
+              js: './src/renderer/search/renderer.tsx',
               name: 'search_window',
-              preload: {
-                js: './src/preload.ts'
-              }
-            },
-            {
-              html: './src/renderer/editor/index.html',
-              js: './src/renderer/editor/renderer.ts',
-              name: 'editor_window',
-              preload: {
-                js: './src/preload.ts'
-              }
-            },
-            {
-              html: './src/renderer/partials/index.html',
-              js: './src/renderer/partials/renderer.ts',
-              name: 'partials_window',
               preload: {
                 js: './src/preload.ts'
               }

@@ -1,7 +1,7 @@
 module.exports = [
   {
-    test: /\.ts$/,
-    exclude: /(node_modules|\.webpack)/,
+    test: /\.tsx?$/,
+    exclude: /(node_modules|\.webpack|__tests__|\.test\.|\.spec\.)/,
     use: {
       loader: 'ts-loader',
       options: {

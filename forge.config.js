@@ -104,7 +104,7 @@ module.exports = {
           entryPoints: [
             {
               html: './src/renderer/search/index.html',
-              js: './src/renderer/search/renderer.ts',
+              js: './src/renderer/search/renderer.tsx',
               name: 'search_window',
               preload: {
                 js: './src/preload.ts'
