@@ -1,7 +1,7 @@
 {
   "name": "pelican-prompt",
   "productName": "Pelican Prompt",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A file-based prompt management application",
   "main": ".webpack/main",
   "scripts": {
