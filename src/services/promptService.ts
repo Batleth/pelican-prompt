@@ -25,8 +25,8 @@ export class PromptService {
       // Extract tag from folder path hierarchy
       const tag = this.tagService.extractTagFromPath(this.promptsFolder, filePath);
 
-      // Extract parameters from content (e.g., [PARAM])
-      const paramRegex = /\[([A-Z_]+)\]/g;
+      // Extract parameters from content (e.g., {PARAM})
+      const paramRegex = /\{([a-zA-Z0-9_]+)\}/g;
       const parameters: string[] = [];
       let match;
 

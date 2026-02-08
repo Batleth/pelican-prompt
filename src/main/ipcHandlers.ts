@@ -87,14 +87,14 @@ tag: com-mail
 title: welcome
 ---
 
-Hi [NAME],
+Hi {NAME},
 
-Welcome to [COMPANY]! We're excited to have you on board.
+Welcome to {COMPANY}! We're excited to have you on board.
 
 {{> greetings.formal}}
 
 Best regards,
-[SENDER_NAME]`;
+{SENDER_NAME}`;
                 fs.writeFileSync(examplePromptFile, examplePromptContent, 'utf-8');
 
                 // Create example partial

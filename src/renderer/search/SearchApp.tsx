@@ -181,7 +181,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
         // 3. Replace Parameters
         paramDialogPrompt.parameters.forEach(param => {
             const value = paramValues[param] || '';
-            const paramRegex = new RegExp(`\\[${param}\\]`, 'g');
+            const paramRegex = new RegExp(`\\\\{${param}\\\\}`, 'gi');
             content = content.replace(paramRegex, value);
         });
 
@@ -215,7 +215,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
         const lines: string[] = [];
         paramDialogPrompt.parameters.forEach(param => {
             const value = paramValues[param] || '';
-            lines.push(`[${param}] = ${value}`);
+            lines.push(`{${param}} = ${value}`);
         });
 
         if (lines.length > 0) {

@@ -1,1 +1,0 @@
-Use a friendly, relaxed tone suitable for internal team communication. It's okay to use contractions and lighter language, but keep it work-appropriate. The goal is to be approachable and collaborative.

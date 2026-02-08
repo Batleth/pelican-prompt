@@ -48,7 +48,7 @@ describe('PromptService', () => {
 
         it('should parse parameters', () => {
             const filePath = '/mock/prompts/params.md';
-            const content = 'Hello [NAME], welcome to [COMPANY].';
+            const content = 'Hello {NAME}, welcome to {COMPANY}.';
             (fs.readFileSync as jest.Mock).mockReturnValue(content);
 
             const result = promptService.parsePromptFile(filePath);

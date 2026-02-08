@@ -296,7 +296,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                         onKeyDown={handleContentKeyDown}
                         placeholder={isPartial
                             ? "Partial content..."
-                            : "Prompt content...\n\nUse [PARAM_NAME] for parameters\nUse {{> partial.path}} for partials (autocomplete shows after typing {{>)"}
+                            : "Prompt content...\n\nUse {PARAM_NAME} for parameters\nUse {{> partial.path}} for partials (autocomplete shows after typing {{>)"}
                         style={{ flex: 1, height: '100%', minHeight: '250px', width: '100%' }}
                         valueState={errorMessage && !content ? 'Negative' : 'None'}
                     />
