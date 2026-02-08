@@ -6,7 +6,14 @@ import { PromptManager } from '../promptManager';
 import { WindowManager } from './WindowManager';
 import { Prompt } from '../types';
 
-export function registerHandlers(store: any, windowManager: WindowManager, getPromptManager: () => PromptManager | null, setPromptManager: (pm: PromptManager) => void) {
+export function registerHandlers(
+    store: any,
+    windowManager: WindowManager,
+    getPromptManager: () => PromptManager | null,
+    setPromptManager: (pm: PromptManager) => void,
+    getGlobalPromptManager: () => PromptManager | null,
+    setGlobalPromptManager: (pm: PromptManager) => void
+) {
 
     // Workspace Handlers
     ipcMain.handle('select-folder', async () => {
@@ -124,11 +131,11 @@ Best regards,
 
     ipcMain.handle('get-prompts-folder', () => store.get('promptsFolder'));
 
-    ipcMain.handle('open-folder-in-filesystem', async () => {
+    ipcMain.handle('open-folder-in-filesystem', async (_event, folderPath?: string) => {
         try {
-            const folder = store.get('promptsFolder') as string | undefined;
-            if (!folder) throw new Error('No prompts folder selected');
-            if (!fs.existsSync(folder)) throw new Error('Prompts folder no longer exists');
+            const folder = folderPath || store.get('promptsFolder') as string | undefined;
+            if (!folder) throw new Error('No folder specified');
+            if (!fs.existsSync(folder)) throw new Error('Folder no longer exists');
 
             const result = await shell.openPath(folder);
             if (result) throw new Error(`Failed to open folder: ${result}`);
@@ -142,14 +149,38 @@ Best regards,
     // Prompt Handlers
     ipcMain.handle('search-prompts', (_event, query: string) => {
         const pm = getPromptManager();
-        return pm ? pm.search(query) : [];
+        const gpm = getGlobalPromptManager();
+        const projectResults = pm ? pm.search(query) : [];
+        const globalResults = gpm ? gpm.search(query) : [];
+        // Merge and deduplicate by file path
+        const seen = new Set<string>();
+        const merged = [...projectResults];
+        for (const r of projectResults) seen.add(r.prompt.filePath);
+        for (const r of globalResults) {
+            if (!seen.has(r.prompt.filePath)) {
+                merged.push(r);
+            }
+        }
+        return merged;
     });
 
     ipcMain.handle('get-all-prompts', () => {
         const pm = getPromptManager();
-        if (!pm) return [];
-        pm.reloadFromDisk();
-        return pm.getAllPrompts();
+        const gpm = getGlobalPromptManager();
+        if (pm) pm.reloadFromDisk();
+        if (gpm) gpm.reloadFromDisk();
+        const projectPrompts = pm ? pm.getAllPrompts() : [];
+        const globalPrompts = gpm ? gpm.getAllPrompts() : [];
+        // Merge and deduplicate by file path
+        const seen = new Set<string>();
+        const merged = [...projectPrompts];
+        for (const p of projectPrompts) seen.add(p.filePath);
+        for (const p of globalPrompts) {
+            if (!seen.has(p.filePath)) {
+                merged.push(p);
+            }
+        }
+        return merged;
     });
 
     ipcMain.handle('save-prompt', async (_event, tag: string, title: string, content: string, existingPath?: string) => {
@@ -173,12 +204,36 @@ Best regards,
     // Partial Handlers
     ipcMain.handle('get-all-partials', () => {
         const pm = getPromptManager();
-        return pm ? pm.getAllPartials() : [];
+        const gpm = getGlobalPromptManager();
+        const projectPartials = pm ? pm.getAllPartials() : [];
+        const globalPartials = gpm ? gpm.getAllPartials() : [];
+        // Merge and deduplicate by path
+        const seen = new Set<string>();
+        const merged = [...projectPartials];
+        for (const p of projectPartials) seen.add(p.path);
+        for (const p of globalPartials) {
+            if (!seen.has(p.path)) {
+                merged.push(p);
+            }
+        }
+        return merged;
     });
 
     ipcMain.handle('search-partials', (_event, query: string) => {
         const pm = getPromptManager();
-        return pm ? pm.searchPartials(query) : [];
+        const gpm = getGlobalPromptManager();
+        const projectResults = pm ? pm.searchPartials(query) : [];
+        const globalResults = gpm ? gpm.searchPartials(query) : [];
+        // Merge and deduplicate by path
+        const seen = new Set<string>();
+        const merged = [...projectResults];
+        for (const p of projectResults) seen.add(p.path);
+        for (const p of globalResults) {
+            if (!seen.has(p.path)) {
+                merged.push(p);
+            }
+        }
+        return merged;
     });
 
     ipcMain.handle('save-partial', async (_event, dotPath: string, content: string, existingPath?: string) => {
@@ -265,5 +320,153 @@ Best regards,
         store.set('theme', theme);
         windowManager.notifyThemeChanged(theme);
         return theme;
+    });
+
+    // Multi-Workspace Handlers
+    ipcMain.handle('get-workspaces', () => {
+        const globalPath = store.get('globalWorkspacePath') as string | undefined;
+        const workspaces = store.get('workspaces', []) as any[];
+        const activeId = store.get('activeWorkspaceId') as string | undefined;
+        return { globalPath, workspaces, activeId };
+    });
+
+    ipcMain.handle('set-global-workspace', async (_event, globalPath: string) => {
+        store.set('globalWorkspacePath', globalPath);
+
+        // Reinitialize Global PromptManager
+        const currentGpm = getGlobalPromptManager();
+        if (currentGpm) currentGpm.destroy();
+
+        const newGpm = new PromptManager(globalPath);
+        setGlobalPromptManager(newGpm);
+
+        return globalPath;
+    });
+
+    ipcMain.handle('add-project-workspace', async (_event, name: string, workspacePath: string) => {
+        const workspaces = store.get('workspaces', []) as any[];
+        const id = `ws_${Date.now()}`;
+        const newWorkspace = {
+            id,
+            name,
+            path: workspacePath,
+            isGlobal: false,
+            isGit: fs.existsSync(path.join(workspacePath, '.git')),
+            autoSync: false,
+            lastUsed: Date.now()
+        };
+        workspaces.push(newWorkspace);
+        store.set('workspaces', workspaces);
+        return newWorkspace;
+    });
+
+    ipcMain.handle('switch-project-workspace', async (_event, workspaceId: string | null) => {
+        store.set('activeWorkspaceId', workspaceId);
+        const workspaces = store.get('workspaces', []) as any[];
+
+        // Destroy current project PromptManager
+        const currentPm = getPromptManager();
+        if (currentPm) currentPm.destroy();
+
+        let activePath: string | undefined;
+        if (workspaceId) {
+            const ws = workspaces.find((w: any) => w.id === workspaceId);
+            if (ws) {
+                ws.lastUsed = Date.now();
+                store.set('workspaces', workspaces);
+                activePath = ws.path;
+
+                // Create new project PromptManager
+                const newPm = new PromptManager(ws.path);
+                setPromptManager(newPm);
+            }
+        } else {
+            // No project workspace - set to null so only global is used
+            setPromptManager(null as any);
+        }
+
+        const globalPath = store.get('globalWorkspacePath') as string | undefined;
+        return { activePath, globalPath };
+    });
+
+    ipcMain.handle('delete-project-workspace', async (_event, workspaceId: string) => {
+        let workspaces = store.get('workspaces', []) as any[];
+        workspaces = workspaces.filter((w: any) => w.id !== workspaceId);
+        store.set('workspaces', workspaces);
+
+        // If this was the active workspace, clear it
+        if (store.get('activeWorkspaceId') === workspaceId) {
+            store.set('activeWorkspaceId', null);
+        }
+        return true;
+    });
+
+    ipcMain.handle('update-workspace-settings', async (_event, workspaceId: string, settings: { autoSync?: boolean; name?: string }) => {
+        const workspaces = store.get('workspaces', []) as any[];
+        const ws = workspaces.find((w: any) => w.id === workspaceId);
+        if (ws) {
+            if (settings.autoSync !== undefined) ws.autoSync = settings.autoSync;
+            if (settings.name !== undefined) ws.name = settings.name;
+            store.set('workspaces', workspaces);
+        }
+        return ws;
+    });
+
+    // Git Operations
+    ipcMain.handle('git-status', async (_event, workspacePath: string) => {
+        const { WorkspaceService } = await import('../services/workspaceService');
+        const service = new WorkspaceService(workspacePath);
+        return await service.getGitStatus();
+    });
+
+    ipcMain.handle('git-init', async (_event, workspacePath: string) => {
+        const { WorkspaceService } = await import('../services/workspaceService');
+        const service = new WorkspaceService(workspacePath);
+        await service.initializeGit();
+
+        // Update workspace isGit flag
+        const workspaces = store.get('workspaces', []) as any[];
+        const ws = workspaces.find((w: any) => w.path === workspacePath);
+        if (ws) {
+            ws.isGit = true;
+            store.set('workspaces', workspaces);
+        }
+        return true;
+    });
+
+    ipcMain.handle('git-add-remote', async (_event, workspacePath: string, url: string) => {
+        const { WorkspaceService } = await import('../services/workspaceService');
+        const service = new WorkspaceService(workspacePath);
+        await service.addRemote(url);
+        return true;
+    });
+
+    ipcMain.handle('git-pull', async (_event, workspacePath: string) => {
+        const { WorkspaceService } = await import('../services/workspaceService');
+        const service = new WorkspaceService(workspacePath);
+        return await service.pull();
+    });
+
+    ipcMain.handle('git-push', async (_event, workspacePath: string) => {
+        const { WorkspaceService } = await import('../services/workspaceService');
+        const service = new WorkspaceService(workspacePath);
+        return await service.push();
+    });
+
+    ipcMain.handle('git-auto-sync', async (_event, workspacePath: string, message: string) => {
+        const { WorkspaceService } = await import('../services/workspaceService');
+        const service = new WorkspaceService(workspacePath);
+        return await service.autoSync(message);
+    });
+
+    ipcMain.handle('git-get-config', async () => {
+        const { WorkspaceService } = await import('../services/workspaceService');
+        return WorkspaceService.getGitConfig();
+    });
+
+    ipcMain.handle('git-set-config', async (_event, name: string, email: string) => {
+        const { WorkspaceService } = await import('../services/workspaceService');
+        await WorkspaceService.setGitConfig(name, email);
+        return true;
     });
 }

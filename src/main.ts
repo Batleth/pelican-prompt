@@ -14,6 +14,7 @@ if (require('electron-squirrel-startup')) {
 const store: any = new Store();
 const windowManager = new WindowManager();
 let promptManager: PromptManager | null = null;
+let globalPromptManager: PromptManager | null = null;
 
 function migrateUserData() {
   const oldPath = path.join(app.getPath('appData'), 'promptlib');
@@ -65,12 +66,24 @@ app.whenReady().then(() => {
     }
   }
 
+  // Check if global workspace is set
+  const globalPath = store.get('globalWorkspacePath') as string | undefined;
+  if (globalPath) {
+    try {
+      globalPromptManager = new PromptManager(globalPath);
+    } catch (e) {
+      console.error('Failed to initialize Global PromptManager:', e);
+    }
+  }
+
   // Register all IPC handlers
   registerHandlers(
     store,
     windowManager,
     () => promptManager,
-    (pm) => { promptManager = pm; }
+    (pm) => { promptManager = pm; },
+    () => globalPromptManager,
+    (pm) => { globalPromptManager = pm; }
   );
 
   // Open the search window immediately on startup
@@ -88,9 +101,12 @@ app.on('will-quit', () => {
   // Unregister all shortcuts
   globalShortcut.unregisterAll();
 
-  // Clean up prompt manager
+  // Clean up prompt managers
   if (promptManager) {
     promptManager.destroy();
+  }
+  if (globalPromptManager) {
+    globalPromptManager.destroy();
   }
 });
 

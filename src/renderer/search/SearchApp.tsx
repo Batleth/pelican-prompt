@@ -33,6 +33,8 @@ import '@ui5/webcomponents-icons/dist/copy.js';
 import '@ui5/webcomponents-icons/dist/inspection.js';
 import '@ui5/webcomponents-icons/dist/cancel.js';
 import '@ui5/webcomponents-icons/dist/open-folder.js';
+import '@ui5/webcomponents-icons/dist/group.js';
+import { WorkspaceManager } from './WorkspaceManager';
 
 interface SearchAppProps {
     onEditPrompt: (prompt: Prompt) => void;
@@ -59,6 +61,8 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
     const listRef = useRef<HTMLDivElement>(null);
     const themeBtnRef = useRef<any>(null);
     const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+    const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
+    const [activeWorkspaceName, setActiveWorkspaceName] = useState<string>('');
 
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const modKey = isMac ? 'Cmd' : 'Ctrl';
@@ -91,6 +95,19 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
             const folder = await window.electronAPI.getPromptsFolder();
             setHasFolder(!!folder);
             setFolderPath(folder);
+
+            // Load active workspace name
+            try {
+                const wsInfo = await window.electronAPI.getWorkspaces();
+                if (wsInfo.activeId && wsInfo.workspaces) {
+                    const activeWs = wsInfo.workspaces.find((w: any) => w.id === wsInfo.activeId);
+                    setActiveWorkspaceName(activeWs ? activeWs.name : 'Global');
+                } else {
+                    setActiveWorkspaceName('Global');
+                }
+            } catch (e) {
+                setActiveWorkspaceName('Global');
+            }
 
             if (folder) {
                 loadPrompts('');
@@ -333,16 +350,18 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                 design="Header"
                 style={{ WebkitAppRegion: 'drag' } as any}
                 startContent={
-                    <FlexBox alignItems="Center">
-                        <Label style={{ marginRight: '5px' }}>Workspace:</Label>
-                        <Text style={{ fontWeight: 500 }}>{folderPath ? folderPath.split(/[\\/]/).pop() : 'None'}</Text>
+                    <FlexBox alignItems="Center" style={{ gap: '0.5rem' }}>
+                        <Text style={{ fontWeight: 600, marginLeft: '0.5rem' }}>Pelican Prompt</Text>
+                        {activeWorkspaceName && (
+                            <Text style={{ fontSize: '0.8rem', color: 'var(--sapNeutralTextColor)' }}>
+                                — {activeWorkspaceName}
+                            </Text>
+                        )}
                     </FlexBox>
                 }
                 endContent={
                     <div style={{ display: 'flex', WebkitAppRegion: 'no-drag' } as any}>
-                        <Button design="Transparent" icon="open-folder" onClick={() => window.electronAPI.openFolderInFilesystem()} tooltip="Open Folder" />
-                        <Button design="Transparent" icon="add" onClick={handleCreateWorkspace} tooltip="Create Workspace" />
-                        <Button design="Transparent" icon="edit" onClick={handleSelectFolder} tooltip="Change Workspace" />
+                        <Button design="Transparent" icon="group" onClick={() => setWorkspaceManagerOpen(true)} tooltip="Manage Workspaces" />
                         <div style={{ width: '1px', background: 'var(--ui5-v2-3-0-list-item-border-color)', margin: '0 4px' }}></div>
                         <Button ref={themeBtnRef} design="Transparent" icon="palette" onClick={() => setThemeMenuOpen(true)} tooltip="Select Theme" />
                         <Button design="Transparent" icon="decline" onClick={() => window.electronAPI.hideWindow()} tooltip="Close" style={{ color: 'var(--sapNegativeColor)' }} />
@@ -548,6 +567,30 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
             </Dialog>
 
             <Toast ref={toastRef}>Prompt deleted</Toast>
+
+            <WorkspaceManager
+                open={workspaceManagerOpen}
+                onClose={() => setWorkspaceManagerOpen(false)}
+                onWorkspaceChanged={async () => {
+                    loadPrompts(query);
+                    const folder = await window.electronAPI.getPromptsFolder();
+                    setFolderPath(folder);
+                    setHasFolder(!!folder);
+
+                    // Refresh workspace name
+                    try {
+                        const wsInfo = await window.electronAPI.getWorkspaces();
+                        if (wsInfo.activeId && wsInfo.workspaces) {
+                            const activeWs = wsInfo.workspaces.find((w: any) => w.id === wsInfo.activeId);
+                            setActiveWorkspaceName(activeWs ? activeWs.name : 'Global');
+                        } else {
+                            setActiveWorkspaceName('Global');
+                        }
+                    } catch (e) {
+                        setActiveWorkspaceName('Global');
+                    }
+                }}
+            />
         </div>
     );
 };

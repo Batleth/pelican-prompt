@@ -11,7 +11,8 @@ import {
     FlexBoxAlignItems,
     Dialog,
     Bar,
-    MessageStrip
+    MessageStrip,
+    Text
 } from '@ui5/webcomponents-react';
 import '@ui5/webcomponents-icons/dist/nav-back.js';
 import '@ui5/webcomponents-icons/dist/save.js';
@@ -27,6 +28,8 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
     const [content, setContent] = useState(prompt?.content || '');
     const [saving, setSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [activeWorkspaceName, setActiveWorkspaceName] = useState<string>('Global');
+    const [activeWorkspace, setActiveWorkspace] = useState<any>(null);
 
     // Autocomplete state
     const [autocompleteVisible, setAutocompleteVisible] = useState(false);
@@ -63,6 +66,33 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
             setContent('');
         }
     }, [prompt, isPartial]);
+
+    // Load active workspace info
+    useEffect(() => {
+        const loadWorkspaceInfo = async () => {
+            try {
+                const wsInfo = await window.electronAPI.getWorkspaces();
+                if (wsInfo.activeId && wsInfo.workspaces) {
+                    const activeWs = wsInfo.workspaces.find((w: any) => w.id === wsInfo.activeId);
+                    if (activeWs) {
+                        setActiveWorkspaceName(activeWs.name);
+                        setActiveWorkspace(activeWs);
+                    } else {
+                        setActiveWorkspaceName('Global');
+                        setActiveWorkspace(null);
+                    }
+                } else {
+                    setActiveWorkspaceName('Global');
+                    setActiveWorkspace(null);
+                }
+            } catch (e) {
+                console.error('Failed to load workspace info:', e);
+                setActiveWorkspaceName('Global');
+                setActiveWorkspace(null);
+            }
+        };
+        loadWorkspaceInfo();
+    }, []);
 
     const parsePathForPrompt = (pathValue: string): { tag: string; title: string } => {
         const parts = pathValue.split('.');
@@ -107,6 +137,26 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
             } else {
                 await window.electronAPI.savePrompt(tag, title, content, prompt?.filePath || undefined);
             }
+
+            // Auto-sync if enabled
+            // Fetch fresh workspace info to get latest settings
+            try {
+                const wsInfo = await window.electronAPI.getWorkspaces();
+                if (wsInfo.activeId && wsInfo.workspaces) {
+                    const freshActiveWs = wsInfo.workspaces.find((w: any) => w.id === wsInfo.activeId);
+
+                    if (freshActiveWs && freshActiveWs.autoSync && freshActiveWs.isGit) {
+                        await window.electronAPI.gitAutoSync(
+                            freshActiveWs.path,
+                            `Auto-sync: Updated ${isPartial ? 'partial' : 'prompt'} ${path}`
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to auto-sync:', err);
+                // Don't fail the save if sync fails
+            }
+
             onClose();
         } catch (e: any) {
             console.error('Save error:', e);
@@ -248,9 +298,12 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                     </Title>
                 }
                 endContent={
-                    <FlexBox alignItems={FlexBoxAlignItems.Center} style={{ WebkitAppRegion: 'no-drag' } as any}>
+                    <FlexBox alignItems={FlexBoxAlignItems.Center} style={{ WebkitAppRegion: 'no-drag', gap: '0.75rem' } as any}>
+                        <Text style={{ fontSize: '0.8rem', color: 'var(--sapNeutralTextColor)' }}>
+                            Saving to: <span style={{ fontWeight: 600 }}>{activeWorkspaceName}</span>
+                        </Text>
                         <Button design="Transparent" icon="save" onClick={handleSave} disabled={saving} tooltip="Save" />
-                        <Button design="Transparent" icon="decline" onClick={onClose} tooltip="Cancel" style={{ marginLeft: '0.5rem', color: 'var(--sapNegativeColor)' }} />
+                        <Button design="Transparent" icon="decline" onClick={onClose} tooltip="Cancel" style={{ color: 'var(--sapNegativeColor)' }} />
                     </FlexBox>
                 }
             />

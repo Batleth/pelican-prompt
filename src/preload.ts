@@ -1,11 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { Prompt, SearchResult, Partial } from './types';
+import { Prompt, SearchResult, Partial, Workspace, GitStatus } from './types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   createWorkspace: () => ipcRenderer.invoke('create-workspace'),
   getPromptsFolder: () => ipcRenderer.invoke('get-prompts-folder'),
-  openFolderInFilesystem: () => ipcRenderer.invoke('open-folder-in-filesystem'),
+  openFolderInFilesystem: (folderPath?: string) => ipcRenderer.invoke('open-folder-in-filesystem', folderPath),
   searchPrompts: (query: string) => ipcRenderer.invoke('search-prompts', query),
   getAllPrompts: () => ipcRenderer.invoke('get-all-prompts'),
   savePrompt: (tag: string, title: string, content: string, existingPath?: string) =>
@@ -47,7 +47,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   onOpenPartialsBrowser: (callback: () => void) => {
     ipcRenderer.on('open-partials-browser', () => callback());
-  }
+  },
+  // Workspace APIs
+  getWorkspaces: () => ipcRenderer.invoke('get-workspaces'),
+  setGlobalWorkspace: (path: string) => ipcRenderer.invoke('set-global-workspace', path),
+  addProjectWorkspace: (name: string, path: string) => ipcRenderer.invoke('add-project-workspace', name, path),
+  switchProjectWorkspace: (id: string | null) => ipcRenderer.invoke('switch-project-workspace', id),
+  deleteProjectWorkspace: (id: string) => ipcRenderer.invoke('delete-project-workspace', id),
+  updateWorkspaceSettings: (id: string, settings: { autoSync?: boolean; name?: string }) => ipcRenderer.invoke('update-workspace-settings', id, settings),
+  // Git APIs
+  gitStatus: (path: string) => ipcRenderer.invoke('git-status', path),
+  gitInit: (path: string) => ipcRenderer.invoke('git-init', path),
+  gitAddRemote: (path: string, url: string) => ipcRenderer.invoke('git-add-remote', path, url),
+  gitPull: (path: string) => ipcRenderer.invoke('git-pull', path),
+  gitPush: (path: string) => ipcRenderer.invoke('git-push', path),
+  gitAutoSync: (path: string, message: string) => ipcRenderer.invoke('git-auto-sync', path, message),
+  gitGetConfig: () => ipcRenderer.invoke('git-get-config'),
+  gitSetConfig: (name: string, email: string) => ipcRenderer.invoke('git-set-config', name, email)
 });
 
 declare global {
@@ -56,7 +72,7 @@ declare global {
       selectFolder: () => Promise<string | null>;
       createWorkspace: () => Promise<string | null>;
       getPromptsFolder: () => Promise<string | undefined>;
-      openFolderInFilesystem: () => Promise<boolean>;
+      openFolderInFilesystem: (folderPath?: string) => Promise<boolean>;
       searchPrompts: (query: string) => Promise<SearchResult[]>;
       getAllPrompts: () => Promise<Prompt[]>;
       savePrompt: (tag: string, title: string, content: string, existingPath?: string) => Promise<string>;
@@ -86,6 +102,22 @@ declare global {
       openPartialsBrowser: () => Promise<void>;
       onOpenEditor: (callback: (prompt: Prompt | null) => void) => void;
       onOpenPartialsBrowser: (callback: () => void) => void;
+      // Workspace APIs
+      getWorkspaces: () => Promise<{ globalPath: string | undefined; workspaces: Workspace[]; activeId: string | undefined }>;
+      setGlobalWorkspace: (path: string) => Promise<string>;
+      addProjectWorkspace: (name: string, path: string) => Promise<Workspace>;
+      switchProjectWorkspace: (id: string | null) => Promise<{ activePath: string | undefined; globalPath: string | undefined }>;
+      deleteProjectWorkspace: (id: string) => Promise<boolean>;
+      updateWorkspaceSettings: (id: string, settings: { autoSync?: boolean; name?: string }) => Promise<Workspace>;
+      // Git APIs
+      gitStatus: (path: string) => Promise<GitStatus>;
+      gitInit: (path: string) => Promise<boolean>;
+      gitAddRemote: (path: string, url: string) => Promise<boolean>;
+      gitPull: (path: string) => Promise<{ success: boolean; error?: string }>;
+      gitPush: (path: string) => Promise<{ success: boolean; error?: string }>;
+      gitAutoSync: (path: string, message: string) => Promise<{ success: boolean; error?: string }>;
+      gitGetConfig: () => Promise<{ name: string; email: string }>;
+      gitSetConfig: (name: string, email: string) => Promise<boolean>;
     };
   }
 }
