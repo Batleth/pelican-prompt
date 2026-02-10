@@ -15,6 +15,18 @@ export function registerHandlers(
     setGlobalPromptManager: (pm: PromptManager) => void
 ) {
 
+    // Helper: resolve workspace ID to the correct PromptManager
+    function resolveWorkspacePm(workspaceId?: string): PromptManager | null {
+        if (workspaceId === 'global') return getGlobalPromptManager();
+        if (workspaceId && workspaceId !== 'global') {
+            // Project workspace — check if it matches the active project PM
+            const pm = getPromptManager();
+            if (pm) return pm;
+        }
+        // Default fallback: project first, then global
+        return getPromptManager() || getGlobalPromptManager();
+    }
+
     // Workspace Handlers
     ipcMain.handle('select-folder', async () => {
         try {
@@ -546,11 +558,9 @@ Best regards,
         return await generateExportString(promptFilePath, targetPm);
     });
 
-    ipcMain.handle('parse-import-string', async (_event, importString: string) => {
+    ipcMain.handle('parse-import-string', async (_event, importString: string, workspaceId?: string) => {
         const { parseImportString, checkConflicts } = await import('./services/importExportService');
-        const pm = getPromptManager();
-        const gpm = getGlobalPromptManager();
-        const targetPm = pm || gpm;
+        const targetPm = resolveWorkspacePm(workspaceId);
 
         if (!targetPm) throw new Error('No workspace active. Please set up a workspace first.');
 
@@ -559,11 +569,9 @@ Best regards,
         return { payload, conflicts };
     });
 
-    ipcMain.handle('execute-import', async (_event, payloadJson: string, overwriteIndices: number[]) => {
+    ipcMain.handle('execute-import', async (_event, payloadJson: string, overwriteIndices: number[], workspaceId?: string) => {
         const { parseImportString, executeImport } = await import('./services/importExportService');
-        const pm = getPromptManager();
-        const gpm = getGlobalPromptManager();
-        const targetPm = pm || gpm;
+        const targetPm = resolveWorkspacePm(workspaceId);
 
         if (!targetPm) throw new Error('No workspace active. Please set up a workspace first.');
 

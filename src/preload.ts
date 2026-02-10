@@ -57,8 +57,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateWorkspaceSettings: (id: string, settings: { name?: string }) => ipcRenderer.invoke('update-workspace-settings', id, settings),
   // Import/Export APIs
   exportPrompt: (promptFilePath: string) => ipcRenderer.invoke('export-prompt', promptFilePath),
-  parseImportString: (importString: string) => ipcRenderer.invoke('parse-import-string', importString),
-  executeImport: (importString: string, overwriteIndices: number[]) => ipcRenderer.invoke('execute-import', importString, overwriteIndices)
+  parseImportString: (importString: string, workspaceId?: string) => ipcRenderer.invoke('parse-import-string', importString, workspaceId),
+  executeImport: (importString: string, overwriteIndices: number[], workspaceId?: string) => ipcRenderer.invoke('execute-import', importString, overwriteIndices, workspaceId)
 });
 
 declare global {
@@ -106,8 +106,8 @@ declare global {
       updateWorkspaceSettings: (id: string, settings: { name?: string }) => Promise<Workspace>;
       // Import/Export APIs
       exportPrompt: (promptFilePath: string) => Promise<string>;
-      parseImportString: (importString: string) => Promise<{ payload: any; conflicts: { items: { item: { type: string; relativePath: string; content: string }; status: 'new' | 'conflict' | 'identical'; existingContent?: string }[] } }>;
-      executeImport: (importString: string, overwriteIndices: number[]) => Promise<{ imported: number; skipped: number }>;
+      parseImportString: (importString: string, workspaceId?: string) => Promise<{ payload: any; conflicts: { items: { item: { type: string; relativePath: string; content: string }; status: 'new' | 'conflict' | 'identical'; existingContent?: string }[] } }>;
+      executeImport: (importString: string, overwriteIndices: number[], workspaceId?: string) => Promise<{ imported: number; skipped: number }>;
     };
   }
 }

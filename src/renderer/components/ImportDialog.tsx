@@ -11,7 +11,9 @@ import {
     CheckBox,
     Icon,
     ObjectStatus,
-    Label
+    Label,
+    Select,
+    Option
 } from '@ui5/webcomponents-react';
 import '@ui5/webcomponents-icons/dist/download.js';
 import '@ui5/webcomponents-icons/dist/document.js';
@@ -39,6 +41,8 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ open, onClose, onImp
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
+    const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([]);
+    const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('global');
 
     const reset = () => {
         setStep('paste');
@@ -48,6 +52,8 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ open, onClose, onImp
         setLoading(false);
         setError(null);
         setResult(null);
+        setWorkspaces([]);
+        setSelectedWorkspaceId('global');
     };
 
     const handleClose = () => {
@@ -61,7 +67,20 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ open, onClose, onImp
         setError(null);
 
         try {
-            const { conflicts } = await window.electronAPI.parseImportString(importString.trim());
+            // Fetch available workspaces
+            const wsInfo = await window.electronAPI.getWorkspaces();
+            const wsList: { id: string; name: string }[] = [{ id: 'global', name: 'Global' }];
+            if (wsInfo.workspaces) {
+                wsInfo.workspaces.forEach((ws: any) => {
+                    wsList.push({ id: ws.id, name: ws.name });
+                });
+            }
+            setWorkspaces(wsList);
+            // Default to active workspace or global
+            const defaultWs = wsInfo.activeId || 'global';
+            setSelectedWorkspaceId(defaultWs);
+
+            const { conflicts } = await window.electronAPI.parseImportString(importString.trim(), defaultWs);
             setConflictItems(conflicts.items);
             // Auto-check "overwrite" for identical items
             const autoCheck = new Set<number>();
@@ -86,7 +105,8 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ open, onClose, onImp
         try {
             const res = await window.electronAPI.executeImport(
                 importString.trim(),
-                Array.from(overwriteChecked)
+                Array.from(overwriteChecked),
+                selectedWorkspaceId
             );
             setResult(res);
             setStep('done');
@@ -176,6 +196,42 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ open, onClose, onImp
                             <MessageStrip design="Critical" hideCloseButton>
                                 Items with conflicts already exist in your workspace with different content. Check the items you want to overwrite.
                             </MessageStrip>
+                        )}
+
+                        {workspaces.length > 1 && (
+                            <FlexBox alignItems="Center" style={{ gap: '0.5rem' }}>
+                                <Label style={{ flexShrink: 0 }}>Import to:</Label>
+                                <Select
+                                    style={{ flex: 1 }}
+                                    onChange={async (e: any) => {
+                                        const wsId = e.detail.selectedOption.dataset.id;
+                                        setSelectedWorkspaceId(wsId);
+                                        // Re-check conflicts for the new workspace
+                                        setLoading(true);
+                                        try {
+                                            const { conflicts } = await window.electronAPI.parseImportString(importString.trim(), wsId);
+                                            setConflictItems(conflicts.items);
+                                            const autoCheck = new Set<number>();
+                                            conflicts.items.forEach((ci: ConflictItem, i: number) => {
+                                                if (ci.status === 'identical' || ci.status === 'new') {
+                                                    autoCheck.add(i);
+                                                }
+                                            });
+                                            setOverwriteChecked(autoCheck);
+                                        } catch (err: any) {
+                                            setError(err.message || 'Failed to check conflicts');
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }}
+                                >
+                                    {workspaces.map(ws => (
+                                        <Option key={ws.id} data-id={ws.id} selected={ws.id === selectedWorkspaceId}>
+                                            {ws.name}
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </FlexBox>
                         )}
 
                         <div style={{ maxHeight: '300px', overflow: 'auto', border: '1px solid var(--sapGroup_TitleBorderColor)', borderRadius: '8px' }}>
