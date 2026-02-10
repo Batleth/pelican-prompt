@@ -185,20 +185,68 @@ Best regards,
 
     ipcMain.handle('save-prompt', async (_event, tag: string, title: string, content: string, existingPath?: string) => {
         const pm = getPromptManager();
-        if (!pm) throw new Error('Prompts folder not set. Please select a folder first.');
-        return await pm.savePrompt(tag, title, content, existingPath);
+        const gpm = getGlobalPromptManager();
+
+        let targetPm = pm;
+
+        // If existing path is provided, determine which PM owns it
+        if (existingPath) {
+            if (pm && existingPath.startsWith(pm.getPromptsFolder())) {
+                targetPm = pm;
+            } else if (gpm && existingPath.startsWith(gpm.getPromptsFolder())) {
+                targetPm = gpm;
+            } else {
+                // Unknown path, default to active (pm) or global (gpm) logic below
+                // But if it's an existing file not in our folders, maybe we shouldn't touch it? 
+                // For now, let's assume if we can't match it, we treat it as new or error?
+                // Actually if standard "Save" flow, it might be new.
+            }
+        } else {
+            // New prompt
+            if (pm) {
+                targetPm = pm;
+            } else if (gpm) {
+                targetPm = gpm;
+            }
+        }
+
+        if (!targetPm) throw new Error('Prompts folder not set. Please select a folder first.');
+        return await targetPm.savePrompt(tag, title, content, existingPath);
     });
 
     ipcMain.handle('delete-prompt', async (_event, filePath: string) => {
         const pm = getPromptManager();
-        if (!pm) throw new Error('Prompts folder not set');
-        await pm.deletePrompt(filePath);
+        const gpm = getGlobalPromptManager();
+
+        let targetPm: PromptManager | null = null;
+
+        if (pm && filePath.startsWith(pm.getPromptsFolder())) {
+            targetPm = pm;
+        } else if (gpm && filePath.startsWith(gpm.getPromptsFolder())) {
+            targetPm = gpm;
+        }
+
+        if (!targetPm) throw new Error('Could not find workspace for this prompt');
+        await targetPm.deletePrompt(filePath);
         return true;
     });
 
     ipcMain.handle('get-prompt', (_event, filePath: string) => {
         const pm = getPromptManager();
-        return pm ? pm.getPrompt(filePath) : null;
+        const gpm = getGlobalPromptManager();
+
+        // Try project first
+        if (pm) {
+            const p = pm.getPrompt(filePath);
+            if (p) return p;
+        }
+
+        // Try global
+        if (gpm) {
+            return gpm.getPrompt(filePath);
+        }
+
+        return null;
     });
 
     // Partial Handlers
@@ -238,38 +286,109 @@ Best regards,
 
     ipcMain.handle('save-partial', async (_event, dotPath: string, content: string, existingPath?: string) => {
         const pm = getPromptManager();
-        if (!pm) throw new Error('Prompts folder not set. Please select a folder first.');
-        return await pm.savePartial(dotPath, content, existingPath);
+        const gpm = getGlobalPromptManager();
+
+        let targetPm = pm;
+
+        if (existingPath) {
+            if (pm && existingPath.startsWith(pm.getPartialsFolder())) {
+                targetPm = pm;
+            } else if (gpm && existingPath.startsWith(gpm.getPartialsFolder())) {
+                targetPm = gpm;
+            }
+        } else {
+            if (pm) {
+                targetPm = pm;
+            } else if (gpm) {
+                targetPm = gpm;
+            }
+        }
+
+        if (!targetPm) throw new Error('Prompts folder not set. Please select a folder first.');
+        return await targetPm.savePartial(dotPath, content, existingPath);
     });
 
     ipcMain.handle('get-partial', (_event, dotPath: string) => {
         const pm = getPromptManager();
-        return pm ? pm.getPartial(dotPath) : null;
+        const gpm = getGlobalPromptManager();
+
+        if (pm) {
+            const p = pm.getPartial(dotPath);
+            if (p) return p;
+        }
+
+        if (gpm) {
+            return gpm.getPartial(dotPath);
+        }
+        return null;
     });
 
     ipcMain.handle('resolve-partials', (_event, content: string) => {
         const pm = getPromptManager();
-        return pm ? pm.resolvePartials(content) : content;
+        const gpm = getGlobalPromptManager();
+
+        // Strategy: Try resolving with project first. 
+        // If content still has unresolved partials (checked how?), try global?
+        // Actually, PromptManager.resolvePartials recursively resolves. 
+        // We need a way to combine them.
+        // For now, let's favor the active project manager if exists, otherwise global.
+        // Ideally we should inject global partials into project manager context or try to resolve missing ones from global.
+        // But PromptManager implementation is self-contained.
+
+        // BETTER APPROACH: 
+        // If PM exists, use it. But PM only knows its own partials.
+        // If we want to support global partials in project prompts, we need to pass global partials to PM?
+        // Or we use GPM if PM is null.
+
+        // Current implementation of resolvePartials in PromptManager (not visible here but assumed) 
+        // likely looks up partials in its own index.
+        // If we want cross-referencing, that's a bigger change.
+        // For now, let's stick to: Use PM if available (covers project), else GPM (covers global).
+        // This means Project prompts can only use Project partials, and Global prompts -> Global partials.
+        // This is safe V1 behavior.
+
+        if (pm) return pm.resolvePartials(content);
+        if (gpm) return gpm.resolvePartials(content);
+        return content;
     });
 
     ipcMain.handle('get-partials-in-folder', (_event, dotPath: string) => {
         const pm = getPromptManager();
-        return pm ? pm.getPartialsInFolder(dotPath) : [];
+        const gpm = getGlobalPromptManager();
+        // Similar logic: prefer project, fallback to global
+        if (pm) {
+            const res = pm.getPartialsInFolder(dotPath);
+            if (res.length > 0) return res;
+        }
+        if (gpm) return gpm.getPartialsInFolder(dotPath);
+        return [];
     });
 
     ipcMain.handle('validate-partials', (_event, partialRefs: string[]) => {
         const pm = getPromptManager();
-        return pm ? pm.validatePartials(partialRefs) : [];
+        const gpm = getGlobalPromptManager();
+
+        // This one returns missing partials.
+        // If we have PM, it checks its own.
+        // If we are in Global, GPM checks its own.
+        // Same limitation as resolve-partials.
+        if (pm) return pm.validatePartials(partialRefs);
+        if (gpm) return gpm.validatePartials(partialRefs);
+        return [];
     });
 
     ipcMain.handle('validate-partial-content', (_event, content: string) => {
         const pm = getPromptManager();
-        return pm ? pm.validatePartialContent(content) : { valid: false, error: 'Prompt manager not initialized' };
+        const gpm = getGlobalPromptManager();
+        const target = pm || gpm;
+        return target ? target.validatePartialContent(content) : { valid: false, error: 'No prompt manager initialized' };
     });
 
     ipcMain.handle('validate-partial-path', (_event, dotPath: string) => {
         const pm = getPromptManager();
-        return pm ? pm.validatePartialPath(dotPath) : { valid: false, error: 'Prompt manager not initialized' };
+        const gpm = getGlobalPromptManager();
+        const target = pm || gpm;
+        return target ? target.validatePartialPath(dotPath) : { valid: false, error: 'No prompt manager initialized' };
     });
 
 

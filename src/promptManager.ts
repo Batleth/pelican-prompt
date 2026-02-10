@@ -12,6 +12,14 @@ export class PromptManager {
   private watcher: chokidar.FSWatcher | null = null;
   private partialsWatcher: chokidar.FSWatcher | null = null;
 
+  public getPromptsFolder(): string {
+    return this.promptsFolder;
+  }
+
+  public getPartialsFolder(): string {
+    return this.partialsFolder;
+  }
+
   // Services
   private tagService: TagService;
   private promptService: PromptService;
