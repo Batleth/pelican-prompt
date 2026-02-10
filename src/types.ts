@@ -25,16 +25,5 @@ export interface Workspace {
   name: string;
   path: string;
   isGlobal: boolean;
-  isGit?: boolean;
-  autoSync?: boolean;
   lastUsed: number;
-}
-
-export interface GitStatus {
-  isGit: boolean;
-  branch?: string;
-  hasRemote?: boolean;
-  hasUncommittedChanges?: boolean;
-  ahead?: number;
-  behind?: number;
 }

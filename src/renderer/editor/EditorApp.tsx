@@ -138,24 +138,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                 await window.electronAPI.savePrompt(tag, title, content, prompt?.filePath || undefined);
             }
 
-            // Auto-sync if enabled
-            // Fetch fresh workspace info to get latest settings
-            try {
-                const wsInfo = await window.electronAPI.getWorkspaces();
-                if (wsInfo.activeId && wsInfo.workspaces) {
-                    const freshActiveWs = wsInfo.workspaces.find((w: any) => w.id === wsInfo.activeId);
 
-                    if (freshActiveWs && freshActiveWs.autoSync && freshActiveWs.isGit) {
-                        await window.electronAPI.gitAutoSync(
-                            freshActiveWs.path,
-                            `Auto-sync: Updated ${isPartial ? 'partial' : 'prompt'} ${path}`
-                        );
-                    }
-                }
-            } catch (err) {
-                console.error('Failed to auto-sync:', err);
-                // Don't fail the save if sync fails
-            }
 
             onClose();
         } catch (e: any) {

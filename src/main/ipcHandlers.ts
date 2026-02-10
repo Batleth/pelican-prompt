@@ -470,8 +470,6 @@ Best regards,
             name,
             path: workspacePath,
             isGlobal: false,
-            isGit: fs.existsSync(path.join(workspacePath, '.git')),
-            autoSync: false,
             lastUsed: Date.now()
         };
         workspaces.push(newWorkspace);
@@ -520,72 +518,13 @@ Best regards,
         return true;
     });
 
-    ipcMain.handle('update-workspace-settings', async (_event, workspaceId: string, settings: { autoSync?: boolean; name?: string }) => {
+    ipcMain.handle('update-workspace-settings', async (_event, workspaceId: string, settings: { name?: string }) => {
         const workspaces = store.get('workspaces', []) as any[];
         const ws = workspaces.find((w: any) => w.id === workspaceId);
         if (ws) {
-            if (settings.autoSync !== undefined) ws.autoSync = settings.autoSync;
             if (settings.name !== undefined) ws.name = settings.name;
             store.set('workspaces', workspaces);
         }
         return ws;
-    });
-
-    // Git Operations
-    ipcMain.handle('git-status', async (_event, workspacePath: string) => {
-        const { WorkspaceService } = await import('../services/workspaceService');
-        const service = new WorkspaceService(workspacePath);
-        return await service.getGitStatus();
-    });
-
-    ipcMain.handle('git-init', async (_event, workspacePath: string) => {
-        const { WorkspaceService } = await import('../services/workspaceService');
-        const service = new WorkspaceService(workspacePath);
-        await service.initializeGit();
-
-        // Update workspace isGit flag
-        const workspaces = store.get('workspaces', []) as any[];
-        const ws = workspaces.find((w: any) => w.path === workspacePath);
-        if (ws) {
-            ws.isGit = true;
-            store.set('workspaces', workspaces);
-        }
-        return true;
-    });
-
-    ipcMain.handle('git-add-remote', async (_event, workspacePath: string, url: string) => {
-        const { WorkspaceService } = await import('../services/workspaceService');
-        const service = new WorkspaceService(workspacePath);
-        await service.addRemote(url);
-        return true;
-    });
-
-    ipcMain.handle('git-pull', async (_event, workspacePath: string) => {
-        const { WorkspaceService } = await import('../services/workspaceService');
-        const service = new WorkspaceService(workspacePath);
-        return await service.pull();
-    });
-
-    ipcMain.handle('git-push', async (_event, workspacePath: string) => {
-        const { WorkspaceService } = await import('../services/workspaceService');
-        const service = new WorkspaceService(workspacePath);
-        return await service.push();
-    });
-
-    ipcMain.handle('git-auto-sync', async (_event, workspacePath: string, message: string) => {
-        const { WorkspaceService } = await import('../services/workspaceService');
-        const service = new WorkspaceService(workspacePath);
-        return await service.autoSync(message);
-    });
-
-    ipcMain.handle('git-get-config', async () => {
-        const { WorkspaceService } = await import('../services/workspaceService');
-        return WorkspaceService.getGitConfig();
-    });
-
-    ipcMain.handle('git-set-config', async (_event, name: string, email: string) => {
-        const { WorkspaceService } = await import('../services/workspaceService');
-        await WorkspaceService.setGitConfig(name, email);
-        return true;
     });
 }
