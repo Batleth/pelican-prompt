@@ -17,6 +17,7 @@ import {
 import '@ui5/webcomponents-icons/dist/nav-back.js';
 import '@ui5/webcomponents-icons/dist/save.js';
 import '@ui5/webcomponents-icons/dist/decline.js';
+import '@ui5/webcomponents-icons/dist/share.js';
 
 interface EditorAppProps {
     prompt: Prompt | null;
@@ -37,6 +38,10 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
     const [autocompleteIndex, setAutocompleteIndex] = useState(0);
     const [autocompletePos, setAutocompletePos] = useState({ top: 0, left: 0 });
     const [triggerStart, setTriggerStart] = useState(-1);
+
+    // Export state
+    const [exportString, setExportString] = useState<string | null>(null);
+    const [exporting, setExporting] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -289,6 +294,20 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                         <Text style={{ fontSize: '0.8rem', color: 'var(--sapNeutralTextColor)' }}>
                             Saving to: <span style={{ fontWeight: 600 }}>{activeWorkspaceName}</span>
                         </Text>
+                        {!isNew && !isPartial && (
+                            <Button design="Transparent" icon="share" onClick={async () => {
+                                if (!prompt?.filePath) return;
+                                setExporting(true);
+                                try {
+                                    const str = await window.electronAPI.exportPrompt(prompt.filePath);
+                                    setExportString(str);
+                                } catch (err: any) {
+                                    setErrorMessage(err.message || 'Export failed');
+                                } finally {
+                                    setExporting(false);
+                                }
+                            }} disabled={exporting} tooltip="Export (share)" />
+                        )}
                         <Button design="Transparent" icon="save" onClick={handleSave} disabled={saving} tooltip="Save" />
                         <Button design="Transparent" icon="decline" onClick={onClose} tooltip="Cancel" style={{ color: 'var(--sapNegativeColor)' }} />
                     </FlexBox>
@@ -391,6 +410,38 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                     )}
                 </div>
             </Bar>
+
+            {/* Export String Dialog */}
+            <Dialog
+                open={!!exportString}
+                onClose={() => setExportString(null)}
+                headerText="Export String"
+                style={{ width: '500px' }}
+                footer={
+                    <Bar endContent={
+                        <FlexBox style={{ gap: '0.5rem' }}>
+                            <Button design="Emphasized" onClick={async () => {
+                                if (exportString) {
+                                    await window.electronAPI.copyToClipboard(exportString);
+                                    setExportString(null);
+                                }
+                            }}>Copy & Close</Button>
+                            <Button design="Transparent" onClick={() => setExportString(null)}>Close</Button>
+                        </FlexBox>
+                    } />
+                }
+            >
+                <FlexBox direction="Column" style={{ gap: '1rem', padding: '1rem' }}>
+                    <Text>Share this string with others. They can import it into their Pelican Prompt to get this prompt and its partials.</Text>
+                    <TextArea
+                        value={exportString || ''}
+                        readonly
+                        rows={6}
+                        style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
+                        growing
+                    />
+                </FlexBox>
+            </Dialog>
         </div>
     );
 };

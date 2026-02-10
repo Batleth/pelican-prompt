@@ -54,7 +54,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addProjectWorkspace: (name: string, path: string) => ipcRenderer.invoke('add-project-workspace', name, path),
   switchProjectWorkspace: (id: string | null) => ipcRenderer.invoke('switch-project-workspace', id),
   deleteProjectWorkspace: (id: string) => ipcRenderer.invoke('delete-project-workspace', id),
-  updateWorkspaceSettings: (id: string, settings: { name?: string }) => ipcRenderer.invoke('update-workspace-settings', id, settings)
+  updateWorkspaceSettings: (id: string, settings: { name?: string }) => ipcRenderer.invoke('update-workspace-settings', id, settings),
+  // Import/Export APIs
+  exportPrompt: (promptFilePath: string) => ipcRenderer.invoke('export-prompt', promptFilePath),
+  parseImportString: (importString: string) => ipcRenderer.invoke('parse-import-string', importString),
+  executeImport: (importString: string, overwriteIndices: number[]) => ipcRenderer.invoke('execute-import', importString, overwriteIndices)
 });
 
 declare global {
@@ -100,6 +104,10 @@ declare global {
       switchProjectWorkspace: (id: string | null) => Promise<{ activePath: string | undefined; globalPath: string | undefined }>;
       deleteProjectWorkspace: (id: string) => Promise<boolean>;
       updateWorkspaceSettings: (id: string, settings: { name?: string }) => Promise<Workspace>;
+      // Import/Export APIs
+      exportPrompt: (promptFilePath: string) => Promise<string>;
+      parseImportString: (importString: string) => Promise<{ payload: any; conflicts: { items: { item: { type: string; relativePath: string; content: string }; status: 'new' | 'conflict' | 'identical'; existingContent?: string }[] } }>;
+      executeImport: (importString: string, overwriteIndices: number[]) => Promise<{ imported: number; skipped: number }>;
     };
   }
 }

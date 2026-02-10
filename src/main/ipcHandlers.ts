@@ -527,4 +527,52 @@ Best regards,
         }
         return ws;
     });
+
+    // Import/Export
+    ipcMain.handle('export-prompt', async (_event, promptFilePath: string) => {
+        const { generateExportString } = await import('./services/importExportService');
+        const pm = getPromptManager();
+        const gpm = getGlobalPromptManager();
+
+        // Determine which PM owns this prompt
+        let targetPm: PromptManager | null = null;
+        if (pm && promptFilePath.startsWith(pm.getPromptsFolder())) {
+            targetPm = pm;
+        } else if (gpm && promptFilePath.startsWith(gpm.getPromptsFolder())) {
+            targetPm = gpm;
+        }
+
+        if (!targetPm) throw new Error('Could not find workspace for this prompt');
+        return await generateExportString(promptFilePath, targetPm);
+    });
+
+    ipcMain.handle('parse-import-string', async (_event, importString: string) => {
+        const { parseImportString, checkConflicts } = await import('./services/importExportService');
+        const pm = getPromptManager();
+        const gpm = getGlobalPromptManager();
+        const targetPm = pm || gpm;
+
+        if (!targetPm) throw new Error('No workspace active. Please set up a workspace first.');
+
+        const payload = parseImportString(importString);
+        const conflicts = checkConflicts(payload, targetPm);
+        return { payload, conflicts };
+    });
+
+    ipcMain.handle('execute-import', async (_event, payloadJson: string, overwriteIndices: number[]) => {
+        const { parseImportString, executeImport } = await import('./services/importExportService');
+        const pm = getPromptManager();
+        const gpm = getGlobalPromptManager();
+        const targetPm = pm || gpm;
+
+        if (!targetPm) throw new Error('No workspace active. Please set up a workspace first.');
+
+        const payload = parseImportString(payloadJson);
+        const result = executeImport(payload, targetPm, overwriteIndices);
+
+        // Reload from disk so the watcher picks up new files
+        targetPm.reloadFromDisk();
+
+        return result;
+    });
 }

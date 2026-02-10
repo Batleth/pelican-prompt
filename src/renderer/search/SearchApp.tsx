@@ -21,6 +21,7 @@ import {
     ResponsivePopover,
     ObjectStatus
 } from '@ui5/webcomponents-react';
+import { TextArea } from '@ui5/webcomponents-react';
 import '@ui5/webcomponents-icons/dist/search.js';
 import '@ui5/webcomponents-icons/dist/palette.js';
 import '@ui5/webcomponents-icons/dist/decline.js';
@@ -34,7 +35,10 @@ import '@ui5/webcomponents-icons/dist/inspection.js';
 import '@ui5/webcomponents-icons/dist/cancel.js';
 import '@ui5/webcomponents-icons/dist/open-folder.js';
 import '@ui5/webcomponents-icons/dist/group.js';
+import '@ui5/webcomponents-icons/dist/download.js';
+import '@ui5/webcomponents-icons/dist/share.js';
 import { WorkspaceManager } from './WorkspaceManager';
+import { ImportDialog } from '../components/ImportDialog';
 
 interface SearchAppProps {
     onEditPrompt: (prompt: Prompt) => void;
@@ -63,6 +67,24 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
     const [themeMenuOpen, setThemeMenuOpen] = useState(false);
     const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
     const [activeWorkspaceName, setActiveWorkspaceName] = useState<string>('');
+    const [importDialogOpen, setImportDialogOpen] = useState(false);
+
+    // Export state
+    const [exportString, setExportString] = useState<string | null>(null);
+    const [exporting, setExporting] = useState(false);
+
+    const handleExportPrompt = useCallback(async (prompt: Prompt) => {
+        if (!prompt.filePath || exporting) return;
+        setExporting(true);
+        try {
+            const str = await window.electronAPI.exportPrompt(prompt.filePath);
+            setExportString(str);
+        } catch (err: any) {
+            console.error('Export failed:', err);
+        } finally {
+            setExporting(false);
+        }
+    }, [exporting]);
 
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const modKey = isMac ? 'Cmd' : 'Ctrl';
@@ -246,12 +268,13 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
 
     const confirmDeletePrompt = async () => {
         if (promptToDelete) {
-            await window.electronAPI.deletePrompt(promptToDelete.filePath);
-            loadPrompts(query);
-            if (toastRef.current) {
-                toastRef.current.show();
-            }
             setDeleteDialogOpen(false);
+            try {
+                await window.electronAPI.deletePrompt(promptToDelete.filePath);
+                loadPrompts(query);
+            } catch (err) {
+                console.error('Delete failed:', err);
+            }
             setPromptToDelete(null);
         }
     };
@@ -319,12 +342,17 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     setPromptToDelete(prompts[selectedIndex].prompt);
                     setDeleteDialogOpen(true);
                 }
+            } else if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                if (prompts.length > 0) {
+                    handleExportPrompt(prompts[selectedIndex].prompt);
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [prompts, selectedIndex, deleteDialogOpen, paramDialogOpen, onEditPrompt, onOpenPartials]);
+    }, [prompts, selectedIndex, deleteDialogOpen, paramDialogOpen, onEditPrompt, onOpenPartials, handleExportPrompt]);
 
     if (!hasFolder) {
         return (
@@ -361,6 +389,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                 }
                 endContent={
                     <div style={{ display: 'flex', WebkitAppRegion: 'no-drag' } as any}>
+                        <Button design="Transparent" icon="download" onClick={() => setImportDialogOpen(true)} tooltip="Import Prompt" />
                         <Button design="Transparent" icon="group" onClick={() => setWorkspaceManagerOpen(true)} tooltip="Manage Workspaces" />
                         <div style={{ width: '1px', background: 'var(--ui5-v2-3-0-list-item-border-color)', margin: '0 4px' }}></div>
                         <Button ref={themeBtnRef} design="Transparent" icon="palette" onClick={() => setThemeMenuOpen(true)} tooltip="Select Theme" />
@@ -440,6 +469,19 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                                         {res.prompt.content.substring(0, 100).replace(/\n/g, ' ')}...
                                     </Text>
                                 </div>
+                                {idx === selectedIndex && (
+                                    <Button
+                                        design="Transparent"
+                                        icon="share"
+                                        tooltip="Export (share)"
+                                        disabled={exporting}
+                                        onClick={(e: any) => {
+                                            e.stopPropagation();
+                                            handleExportPrompt(res.prompt);
+                                        }}
+                                        style={{ flexShrink: 0 }}
+                                    />
+                                )}
                             </ListItemCustom>
                         ))}
                     </List>
@@ -453,6 +495,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     <span><kbd className="kbd">{modKey}+N</kbd> New</span>
                     <span><kbd className="kbd">{modKey}+E</kbd> Edit</span>
                     <span><kbd className="kbd">{modKey}+R</kbd> Delete</span>
+                    <span><kbd className="kbd">{modKey}+S</kbd> Share</span>
                     <span><kbd className="kbd">{modKey}+P</kbd> Partials</span>
                     <span><kbd className="kbd">Esc</kbd> Close</span>
                 </div>
@@ -591,6 +634,43 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     }
                 }}
             />
+            <ImportDialog
+                open={importDialogOpen}
+                onClose={() => setImportDialogOpen(false)}
+                onImportComplete={() => loadPrompts(query)}
+            />
+
+            {/* Export String Dialog */}
+            <Dialog
+                open={!!exportString}
+                onClose={() => setExportString(null)}
+                headerText="Export String"
+                style={{ width: '500px' }}
+                footer={
+                    <Bar endContent={
+                        <FlexBox style={{ gap: '0.5rem' }}>
+                            <Button design="Emphasized" onClick={async () => {
+                                if (exportString) {
+                                    await window.electronAPI.copyToClipboard(exportString);
+                                    setExportString(null);
+                                }
+                            }}>Copy & Close</Button>
+                            <Button design="Transparent" onClick={() => setExportString(null)}>Close</Button>
+                        </FlexBox>
+                    } />
+                }
+            >
+                <FlexBox direction="Column" style={{ gap: '1rem', padding: '1rem' }}>
+                    <Text>Share this string with others. They can import it into their Pelican Prompt to get this prompt and its partials.</Text>
+                    <TextArea
+                        value={exportString || ''}
+                        readonly
+                        rows={6}
+                        style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
+                        growing
+                    />
+                </FlexBox>
+            </Dialog>
         </div>
     );
 };
