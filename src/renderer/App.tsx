@@ -11,11 +11,13 @@ type View = 'SEARCH' | 'EDITOR' | 'PARTIALS';
 export const App = () => {
     const [view, setView] = useState<View>('SEARCH');
     const [editorPrompt, setEditorPrompt] = useState<Prompt | null>(null);
+    const [previousView, setPreviousView] = useState<View>('SEARCH');
 
     useEffect(() => {
         // Listeners for view switching
         const removeOpenEditor = window.electronAPI.onOpenEditor((prompt) => {
             setEditorPrompt(prompt);
+            setPreviousView('SEARCH'); // Default to search if opened via global shortcut
             setView('EDITOR');
         });
 
@@ -30,13 +32,11 @@ export const App = () => {
 
     const handleNavigateToSearch = () => {
         setView('SEARCH');
-        // Also notify main process if needed, but client-side nav is faster
-        // If main process expects a signal (e.g. to resize window?), we might need to send one
-        // But for now, we just switch view.
     };
 
-    const handleNavigateToEditor = (prompt?: Prompt) => {
+    const handleNavigateToEditor = (prompt?: Prompt, from: View = 'SEARCH') => {
         setEditorPrompt(prompt || null);
+        setPreviousView(from);
         setView('EDITOR');
     };
 
@@ -44,19 +44,27 @@ export const App = () => {
         setView('PARTIALS');
     };
 
+    const handleCloseEditor = () => {
+        if (previousView === 'PARTIALS') {
+            setView('PARTIALS');
+        } else {
+            setView('SEARCH');
+        }
+    };
+
     return (
         <ThemeProvider>
             <div className="app-container" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--sapBackgroundColor)' }}>
                 {view === 'SEARCH' && (
                     <SearchApp
-                        onEditPrompt={handleNavigateToEditor}
+                        onEditPrompt={(p) => handleNavigateToEditor(p, 'SEARCH')}
                         onOpenPartials={handleNavigateToPartials}
                     />
                 )}
                 {view === 'EDITOR' && (
                     <EditorApp
                         prompt={editorPrompt}
-                        onClose={handleNavigateToSearch}
+                        onClose={handleCloseEditor}
                     />
                 )}
                 {view === 'PARTIALS' && (
@@ -74,7 +82,7 @@ export const App = () => {
                                 partials: [],
                                 partialPickers: []
                             };
-                            handleNavigateToEditor(promptLike);
+                            handleNavigateToEditor(promptLike, 'PARTIALS');
                         }}
                         onClose={handleNavigateToSearch}
                     />

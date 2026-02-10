@@ -264,6 +264,8 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                 e.preventDefault();
                 handleSave();
             } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
                 onClose();
             }
         }
@@ -275,6 +277,8 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                 e.preventDefault();
                 handleSave();
             } else if (e.key === 'Escape' && !autocompleteVisible) {
+                e.preventDefault();
+                e.stopPropagation();
                 onClose();
             }
         };
