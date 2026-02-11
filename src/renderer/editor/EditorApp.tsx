@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Prompt, Partial } from '../../types';
+import Editor, { Monaco, loader } from '@monaco-editor/react';
 import {
-    TextArea,
     Input,
     Button,
     Title,
@@ -19,6 +19,35 @@ import '@ui5/webcomponents-icons/dist/save.js';
 import '@ui5/webcomponents-icons/dist/decline.js';
 import '@ui5/webcomponents-icons/dist/share.js';
 
+// Configure Monaco Environment for Electron/Webpack
+// This ensures that the editor can load its worker scripts correctly
+import '@ui5/webcomponents-icons/dist/share.js';
+
+// Configure Monaco Environment for Electron/Webpack
+// This ensures that the editor can load its worker scripts correctly
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import 'monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution';
+import 'monaco-editor/esm/vs/basic-languages/handlebars/handlebars.contribution';
+
+// Configures the monaco-react wrapper to use our bundled monaco instance
+// instead of loading from CDN.
+try {
+    loader.config({ monaco });
+    console.log('[Monaco] loader configured with local instance');
+} catch (e) {
+    console.error('[Monaco] Failed to configure loader:', e);
+}
+
+(self as any).MonacoEnvironment = {
+    getWorkerUrl: function (moduleId: any, label: string) {
+        // Return a dummy worker to prevent 404 errors and build issues
+        // We cannot use actual workers because bundles are too large for electron-forge default config
+        // and manual copying is fragile.
+        // Basic editing and custom autocomplete (main thread) will still work.
+        return 'data:text/javascript;charset=utf-8,' + encodeURIComponent('self.onmessage = () => {};');
+    }
+};
+
 interface EditorAppProps {
     prompt: Prompt | null;
     onClose: () => void;
@@ -30,20 +59,14 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
     const [saving, setSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [activeWorkspaceName, setActiveWorkspaceName] = useState<string>('Global');
-    const [activeWorkspace, setActiveWorkspace] = useState<any>(null);
-
-    // Autocomplete state
-    const [autocompleteVisible, setAutocompleteVisible] = useState(false);
-    const [autocompleteItems, setAutocompleteItems] = useState<Partial[]>([]);
-    const [autocompleteIndex, setAutocompleteIndex] = useState(0);
-    const [autocompletePos, setAutocompletePos] = useState({ top: 0, left: 0 });
-    const [triggerStart, setTriggerStart] = useState(-1);
 
     // Export state
     const [exportString, setExportString] = useState<string | null>(null);
     const [exporting, setExporting] = useState(false);
 
-    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+    const editorRef = useRef<any>(null);
+    const monacoRef = useRef<Monaco | null>(null);
+    const partialsRef = useRef<Partial[]>([]);
 
     const isPartial = !prompt?.tag && (prompt?.id === 'new-partial' || prompt?.filePath?.includes('partials'));
     const isNew = !prompt?.filePath || prompt?.id === 'new-partial';
@@ -52,6 +75,10 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
 
     useEffect(() => {
         if (prompt) {
+            // ... (existing logic)
+            // ...
+            // ...
+            // Inside Input
             if (isPartial) {
                 setPath(prompt.title || '');
             } else {
@@ -81,22 +108,31 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                     const activeWs = wsInfo.workspaces.find((w: any) => w.id === wsInfo.activeId);
                     if (activeWs) {
                         setActiveWorkspaceName(activeWs.name);
-                        setActiveWorkspace(activeWs);
                     } else {
                         setActiveWorkspaceName('Global');
-                        setActiveWorkspace(null);
                     }
                 } else {
                     setActiveWorkspaceName('Global');
-                    setActiveWorkspace(null);
                 }
             } catch (e) {
                 console.error('Failed to load workspace info:', e);
                 setActiveWorkspaceName('Global');
-                setActiveWorkspace(null);
             }
         };
         loadWorkspaceInfo();
+    }, []);
+
+    // Load partials for autocomplete
+    useEffect(() => {
+        const loadPartials = async () => {
+            try {
+                const allPartials = await window.electronAPI.getAllPartials();
+                partialsRef.current = allPartials;
+            } catch (e) {
+                console.error('Failed to load partials for autocomplete:', e);
+            }
+        };
+        loadPartials();
     }, []);
 
     const parsePathForPrompt = (pathValue: string): { tag: string; title: string } => {
@@ -117,7 +153,11 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
             setErrorMessage("Path is required");
             return;
         }
-        if (!content) {
+
+        // Get content from editor if available, otherwise use state
+        const currentContent = editorRef.current ? editorRef.current.getValue() : content;
+
+        if (!currentContent) {
             setErrorMessage("Content is required");
             return;
         }
@@ -138,17 +178,14 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
         setSaving(true);
         try {
             if (isPartial) {
-                await window.electronAPI.savePartial(path, content, prompt?.filePath || undefined);
+                await window.electronAPI.savePartial(path, currentContent, prompt?.filePath || undefined);
             } else {
-                await window.electronAPI.savePrompt(tag, title, content, prompt?.filePath || undefined);
+                await window.electronAPI.savePrompt(tag, title, currentContent, prompt?.filePath || undefined);
             }
-
-
 
             onClose();
         } catch (e: any) {
             console.error('Save error:', e);
-            // Extract cleaner error message
             let msg = e.message || 'Save failed';
             if (msg.includes('already exists')) {
                 msg = 'A prompt with this path already exists. Please use a different path.';
@@ -158,125 +195,124 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
         }
     };
 
-    // Check for partial trigger in content
-    const checkAutocomplete = useCallback(async (text: string, cursorPos: number) => {
-        const beforeCursor = text.substring(0, cursorPos);
-        const triggerMatch = beforeCursor.match(/\{\{>\s*([a-zA-Z0-9._]*)$/);
-
-        if (triggerMatch) {
-            const query = triggerMatch[1] || '';
-            setTriggerStart(cursorPos - query.length);
-
-            try {
-                let partials;
-                if (query.trim()) {
-                    partials = await window.electronAPI.searchPartials(query);
-                } else {
-                    partials = await window.electronAPI.getAllPartials();
-                }
-
-                if (partials.length > 0) {
-                    setAutocompleteItems(partials.slice(0, 8));
-                    setAutocompleteIndex(0);
-                    setAutocompleteVisible(true);
-
-                    const lines = beforeCursor.split('\n');
-                    const lineNumber = lines.length;
-                    setAutocompletePos({
-                        top: lineNumber * 20 + 100,
-                        left: 50
-                    });
-                } else {
-                    setAutocompleteVisible(false);
-                }
-            } catch (e) {
-                setAutocompleteVisible(false);
-            }
-        } else {
-            setAutocompleteVisible(false);
-        }
-    }, []);
-
-    const insertPartial = (partial: Partial) => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-
-        const cursorPos = textarea.selectionStart;
-        const beforeTrigger = content.substring(0, triggerStart);
-        const afterCursor = content.substring(cursorPos);
-
-        const newContent = beforeTrigger + partial.path + '}}' + afterCursor;
-        setContent(newContent);
-        setAutocompleteVisible(false);
-
-        setTimeout(() => {
-            if (textareaRef.current) {
-                const newPos = triggerStart + partial.path.length + 2;
-                textareaRef.current.focus();
-                textareaRef.current.setSelectionRange(newPos, newPos);
-            }
-        }, 0);
-    };
-
-    const handleContentInput = (e: any) => {
-        const newContent = e.target.value;
-        setContent(newContent);
-
-        const textarea = e.target.shadowRoot?.querySelector('textarea') || textareaRef.current;
-        if (textarea) {
-            textareaRef.current = textarea;
-            const cursorPos = textarea.selectionStart;
-            checkAutocomplete(newContent, cursorPos);
-        }
-    };
-
-    const handleContentKeyDown = (e: React.KeyboardEvent) => {
-        if (autocompleteVisible) {
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                setAutocompleteIndex(prev => Math.min(prev + 1, autocompleteItems.length - 1));
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setAutocompleteIndex(prev => Math.max(prev - 1, 0));
-            } else if (e.key === 'Enter' || e.key === 'Tab') {
-                e.preventDefault();
-                if (autocompleteItems[autocompleteIndex]) {
-                    insertPartial(autocompleteItems[autocompleteIndex]);
-                }
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                setAutocompleteVisible(false);
-            }
-        } else {
-            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-                e.preventDefault();
-                handleSave();
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-            }
-        }
-    };
-
+    // Keep handleSaveRef up to date for keybindings
+    const handleSaveRef = useRef(handleSave);
     useEffect(() => {
-        const handleGlobalKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        handleSaveRef.current = handleSave;
+    }, [handleSave]);
+
+    // Global save shortcut (for when focus is outside Monaco, e.g. in Input)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+                // If focus is in Monaco, the Monaco command handling might trigger too.
+                // However, Monaco usually stops propagation if it handles it.
+                // If it doesn't, we might trigger save twice, but handleSave has state checks (though not strict lock).
+                // To be safe, we can check if the active element is NOT the monaco editor/textarea?
+                // Actually, let's just use preventDefault. Monaco intercepts its own events before bubbling to window usually?
+                // Let's rely on handleSaveRef.
                 e.preventDefault();
-                handleSave();
-            } else if (e.key === 'Escape' && !autocompleteVisible) {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
+                console.log('[EditorApp] Global save shortcut triggered');
+                handleSaveRef.current();
             }
         };
-        window.addEventListener('keydown', handleGlobalKeyDown);
-        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-    }, [content, path, autocompleteVisible]);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    const handleEditorDidMount = (editor: any, monaco: Monaco) => {
+        editorRef.current = editor;
+        monacoRef.current = monaco;
+
+        // Register custom completion provider for partials
+        monaco.languages.registerCompletionItemProvider('markdown', {
+            triggerCharacters: ['>', ' '],
+            provideCompletionItems: (model, position) => {
+                const textUntilPosition = model.getValueInRange({
+                    startLineNumber: position.lineNumber,
+                    startColumn: 1,
+                    endLineNumber: position.lineNumber,
+                    endColumn: position.column
+                });
+
+                // Check if we are inside a partial tag {{> ...
+                const match = textUntilPosition.match(/\{\{>\s*([^}]*)$/);
+                if (!match) {
+                    return { suggestions: [] };
+                }
+
+                const suggestions = partialsRef.current.map(p => ({
+                    label: p.path,
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: p.path + '}}', // Close the tag
+                    documentation: p.content.substring(0, 100),
+                    range: {
+                        startLineNumber: position.lineNumber,
+                        startColumn: position.column,
+                        endLineNumber: position.lineNumber,
+                        endColumn: position.column
+                    }
+                }));
+
+                return { suggestions };
+            }
+        });
+
+        // Add keybindings
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+            handleSaveRef.current();
+        });
+
+        editor.addCommand(monaco.KeyCode.Escape, () => {
+            onClose();
+        });
+
+        // Focus editor
+        editor.focus();
+    };
 
     const pathHint = isPartial
         ? 'Dot notation path (e.g., tones.urgent)'
         : 'Dot notation path (e.g., work.email.draft) - last part becomes title, rest becomes tag';
+
+    // Determine theme (simplified logic, assuming dark preferred or system match)
+    // Providing requested mapping: 
+    // Light -> vs
+    // Dark -> vs-dark
+    // High Contrast -> hc-black
+    // Ideally we would detect this from @ui5/webcomponents-react context or event, 
+    // for now defaulting to vs-dark as it is good for code, or we could check system preference.
+    const mapUi5ThemeToMonaco = (ui5Theme: string): string => {
+        switch (ui5Theme) {
+            case 'sap_horizon':
+            case 'sap_fiori_3':
+                return 'vs';
+            case 'sap_horizon_dark':
+            case 'sap_fiori_3_dark':
+                return 'vs-dark';
+            case 'sap_horizon_hcb':
+            case 'sap_horizon_hcw':
+            case 'sap_fiori_3_hcb':
+            case 'sap_fiori_3_hcw':
+                return 'hc-black';
+            default:
+                return 'vs-dark';
+        }
+    };
+
+    const [editorTheme, setEditorTheme] = useState('vs-dark');
+
+    useEffect(() => {
+        const initTheme = async () => {
+            const currentTheme = await window.electronAPI.getTheme();
+            setEditorTheme(mapUi5ThemeToMonaco(currentTheme));
+        };
+        initTheme();
+
+        window.electronAPI.onThemeChanged((newTheme) => {
+            setEditorTheme(mapUi5ThemeToMonaco(newTheme));
+        });
+    }, []);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--sapBackgroundColor)' }}>
@@ -315,20 +351,20 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
             />
 
             {/* Content Wrapper */}
-            <div style={{ flex: 1, overflow: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 {/* Error message */}
                 {errorMessage && (
                     <MessageStrip
                         design="Negative"
                         onClose={() => setErrorMessage(null)}
-                        style={{ marginBottom: '1rem' }}
+                        style={{ margin: '1rem', flexShrink: 0 }}
                     >
                         {errorMessage}
                     </MessageStrip>
                 )}
 
                 {/* Path field */}
-                <div style={{ marginBottom: '1rem', flexShrink: 0 }}>
+                <div style={{ padding: '1rem', paddingBottom: '0.5rem', flexShrink: 0 }}>
                     <Label>{isPartial ? 'Partial Path' : 'Prompt Path'}</Label>
                     <Input
                         value={path}
@@ -346,55 +382,24 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                     </div>
                 </div>
 
-                {/* Content textarea with autocomplete */}
-                <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: '300px' }}>
-                    <Label>Content</Label>
-                    <TextArea
+                {/* Monaco Editor */}
+                <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                    <Editor
+                        height="100%"
+                        defaultLanguage="markdown"
+                        theme={editorTheme}
                         value={content}
-                        onInput={handleContentInput}
-                        onKeyDown={handleContentKeyDown}
-                        placeholder={isPartial
-                            ? "Partial content..."
-                            : "Prompt content...\n\nUse {PARAM_NAME} for parameters\nUse {{> partial.path}} for partials (autocomplete shows after typing {{>)"}
-                        style={{ flex: 1, height: '100%', minHeight: '250px', width: '100%' }}
-                        valueState={errorMessage && !content ? 'Negative' : 'None'}
+                        onChange={(value) => setContent(value || '')}
+                        onMount={handleEditorDidMount}
+                        options={{
+                            minimap: { enabled: false },
+                            fontSize: 14,
+                            wordWrap: 'on',
+                            scrollBeyondLastLine: false,
+                            automaticLayout: true,
+                            padding: { top: 10, bottom: 10 }
+                        }}
                     />
-
-                    {/* Autocomplete dropdown */}
-                    {autocompleteVisible && autocompleteItems.length > 0 && (
-                        <div style={{
-                            position: 'absolute',
-                            top: autocompletePos.top,
-                            left: autocompletePos.left,
-                            background: 'var(--sapList_Background)',
-                            border: '1px solid var(--sapList_BorderColor)',
-                            borderRadius: '4px',
-                            boxShadow: 'var(--sapContent_Shadow2)',
-                            maxHeight: '200px',
-                            overflow: 'auto',
-                            zIndex: 1000,
-                            minWidth: '300px'
-                        }}>
-                            {autocompleteItems.map((partial, idx) => (
-                                <div
-                                    key={partial.filePath}
-                                    style={{
-                                        padding: '8px 12px',
-                                        cursor: 'pointer',
-                                        background: idx === autocompleteIndex ? 'var(--sapList_SelectionBackgroundColor)' : 'transparent',
-                                        borderLeft: idx === autocompleteIndex ? '3px solid var(--sapBrandColor)' : '3px solid transparent'
-                                    }}
-                                    onClick={() => insertPartial(partial)}
-                                    onMouseEnter={() => setAutocompleteIndex(idx)}
-                                >
-                                    <div style={{ fontWeight: 500 }}>{partial.path}</div>
-                                    <div style={{ fontSize: '11px', color: 'var(--sapContent_LabelColor)', marginTop: '2px' }}>
-                                        {partial.content.substring(0, 60).replace(/\n/g, ' ')}...
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -403,11 +408,9 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                 <div style={{ display: 'flex', gap: '1rem', color: 'var(--sapContent_LabelColor)', fontSize: '0.875rem' }}>
                     <span><kbd className="kbd">{modKey}+S</kbd> Save</span>
                     <span><kbd className="kbd">Esc</kbd> Cancel</span>
-                    {!isPartial && (
-                        <span style={{ marginLeft: '8px', color: 'var(--sapContent_LabelColor)' }}>
-                            Tip: Type <kbd className="kbd">{'{{>'}</kbd> to insert partials
-                        </span>
-                    )}
+                    <span style={{ marginLeft: '8px', color: 'var(--sapContent_LabelColor)' }}>
+                        Request partials with <kbd className="kbd">{'{{>'}</kbd>
+                    </span>
                 </div>
             </Bar>
 
@@ -433,13 +436,20 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
             >
                 <FlexBox direction="Column" style={{ gap: '1rem', padding: '1rem' }}>
                     <Text>Share this string with others. They can import it into their Pelican Prompt to get this prompt and its partials.</Text>
-                    <TextArea
-                        value={exportString || ''}
-                        readonly
-                        rows={6}
-                        style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
-                        growing
-                    />
+                    <div style={{
+                        width: '100%',
+                        fontFamily: 'monospace',
+                        fontSize: '0.8rem',
+                        background: 'var(--sapField_Background)',
+                        padding: '0.5rem',
+                        border: '1px solid var(--sapField_BorderColor)',
+                        borderRadius: '4px',
+                        wordBreak: 'break-all',
+                        maxHeight: '200px',
+                        overflow: 'auto'
+                    }}>
+                        {exportString}
+                    </div>
                 </FlexBox>
             </Dialog>
         </div>

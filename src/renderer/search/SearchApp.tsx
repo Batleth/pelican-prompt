@@ -46,6 +46,8 @@ interface SearchAppProps {
 }
 
 export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartials }) => {
+    const formatTag = (tag: string) => tag.split('/').pop() || tag;
+
     const [query, setQuery] = useState('');
     const [prompts, setPrompts] = useState<SearchResult[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -296,7 +298,9 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
     };
 
     const handleThemeSelect = async (e: any) => {
-        const item = e.detail.item;
+        const items = e.detail.selectedItems;
+        if (!items || items.length === 0) return;
+        const item = items[0];
         // redundancy: check dataset, generic attribute, etc.
         const theme = item.getAttribute('data-theme') || item.dataset.theme;
         console.log('Selecting theme:', theme);
@@ -343,89 +347,111 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     setDeleteDialogOpen(true);
                 }
             } else if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-                e.preventDefault();
-                if (prompts.length > 0) {
-                    handleExportPrompt(prompts[selectedIndex].prompt);
-                }
+                // e.preventDefault();
+                // if (prompts.length > 0) {
+                //     handleExportPrompt(prompts[selectedIndex].prompt);
+                // }
+                // User requested to remove Ctrl+S for share in list
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [prompts, selectedIndex, deleteDialogOpen, paramDialogOpen, onEditPrompt, onOpenPartials, handleExportPrompt]);
-
-    if (!hasFolder) {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem' }}>
-                <Title>Welcome to Pelican Prompt</Title>
-                <Label>Select a folder to store your prompts</Label>
-                <Button onClick={handleSelectFolder}>Select Folder</Button>
-            </div>
-        );
-    }
-
-    const formatTag = (tag: string): string => {
-        if (!tag) return '';
-        return tag.split('-')
-            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(' > ');
-    };
-
+    // ...
+    // ...
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--sapBackgroundColor)' }}>
-            {/* Header Content */}
-            <Bar
-                design="Header"
-                style={{ WebkitAppRegion: 'drag' } as any}
-                startContent={
-                    <FlexBox alignItems="Center" style={{ gap: '0.5rem' }}>
-                        <Text style={{ fontWeight: 600, marginLeft: '0.5rem' }}>Pelican Prompt</Text>
-                        {activeWorkspaceName && (
-                            <Text style={{ fontSize: '0.8rem', color: 'var(--sapNeutralTextColor)' }}>
-                                — {activeWorkspaceName}
-                            </Text>
-                        )}
-                    </FlexBox>
-                }
-                endContent={
-                    <div style={{ display: 'flex', WebkitAppRegion: 'no-drag' } as any}>
-                        <Button design="Transparent" icon="download" onClick={() => setImportDialogOpen(true)} tooltip="Import Prompt" />
-                        <Button design="Transparent" icon="group" onClick={() => setWorkspaceManagerOpen(true)} tooltip="Manage Workspaces" />
-                        <div style={{ width: '1px', background: 'var(--ui5-v2-3-0-list-item-border-color)', margin: '0 4px' }}></div>
-                        <Button ref={themeBtnRef} design="Transparent" icon="palette" onClick={() => setThemeMenuOpen(true)} tooltip="Select Theme" />
-                        <Button design="Transparent" icon="decline" onClick={() => window.electronAPI.hideWindow()} tooltip="Close" style={{ color: 'var(--sapNegativeColor)' }} />
+        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--sapBackgroundColor)' }}>
+            {/* Header / Drag Region */}
+            <div style={{
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0 1rem',
+                borderBottom: '1px solid var(--sapList_BorderColor)',
+                // @ts-ignore
+                WebkitAppRegion: 'drag',
+                userSelect: 'none'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Title level="H5" style={{ margin: 0, color: 'var(--sapTextColor)' }}>PelicanPrompt</Title>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--sapTextColor)', marginLeft: '1rem' }}>Current Workspace:</span>
+                    <div
+                        onClick={() => setWorkspaceManagerOpen(true)}
+                        style={{
+                            color: 'var(--sapTextColor)',
+                            fontSize: '0.8rem',
+                            padding: '2px 2px'
+                        }}
+                    >
+                        {activeWorkspaceName || 'Global'}
                     </div>
-                }
-            />
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', WebkitAppRegion: 'no-drag' } as any}>
+                    <Button
+                        icon="group"
+                        design="Transparent"
+                        onClick={() => setWorkspaceManagerOpen(true)}
+                        tooltip="Workspaces"
+                    />
+                    <Button
+                        ref={themeBtnRef}
+                        icon="palette"
+                        design="Transparent"
+                        onClick={() => setThemeMenuOpen(true)}
+                        tooltip="Change Theme"
+                    />
+                </div>
+            </div>
+
+            {/* Search Bar & Actions */}
+            <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Input
+                    placeholder="Search prompts..."
+                    value={query}
+                    onInput={handleSearch}
+                    icon={<Icon name="search" />}
+                    style={{ flex: 1 }}
+                />
+                <Button
+                    icon="add"
+                    design="Emphasized"
+                    onClick={() => window.electronAPI.openEditor()}
+                    tooltip="New Prompt"
+                />
+                <Button
+                    icon="open-folder"
+                    design="Transparent"
+                    onClick={handleSelectFolder}
+                    tooltip="Open Folder"
+                />
+            </div>
+
             <ResponsivePopover
                 open={themeMenuOpen}
                 opener={themeBtnRef.current}
                 onClose={() => setThemeMenuOpen(false)}
             >
-                <List onItemClick={handleThemeSelect} selectionMode="Single">
+                <List onSelectionChange={handleThemeSelect} selectionMode="Single">
                     <ListItemStandard data-theme="sap_horizon">Morning Horizon (Light)</ListItemStandard>
                     <ListItemStandard data-theme="sap_horizon_dark">Evening Horizon (Dark)</ListItemStandard>
-                    <ListItemStandard data-theme="sap_horizon_hcb">Horizon High Contrast Black</ListItemStandard>
-                    <ListItemStandard data-theme="sap_horizon_hcw">Horizon High Contrast White</ListItemStandard>
+                    <ListItemStandard data-theme="sap_horizon_hcb">High Contrast Black</ListItemStandard>
+                    <ListItemStandard data-theme="sap_horizon_hcw">High Contrast White</ListItemStandard>
                     <ListItemStandard data-theme="sap_fiori_3">Quartz Light</ListItemStandard>
                     <ListItemStandard data-theme="sap_fiori_3_dark">Quartz Dark</ListItemStandard>
-                    <ListItemStandard data-theme="sap_fiori_3_hcb">Quartz High Contrast Black</ListItemStandard>
-                    <ListItemStandard data-theme="sap_fiori_3_hcw">Quartz High Contrast White</ListItemStandard>
                 </List>
             </ResponsivePopover>
-            <div style={{ padding: '0.5rem 1rem', flexShrink: 0 }}>
-                <Input
-                    icon={<Icon name="search" />}
-                    value={query}
-                    onInput={handleSearch}
-                    placeholder="Search prompts..."
-                    style={{ width: '100%' }}
-                />
-            </div>
 
-            {/* Results list */}
+
             <div ref={listRef} style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-                {prompts.length === 0 ? (
+                {!hasFolder ? (
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                        <Title level="H5" style={{ color: 'var(--sapContent_LabelColor)' }}>No Folder Selected</Title>
+                        <Button onClick={handleSelectFolder} style={{ marginTop: '1rem' }}>Open Folder</Button>
+                    </div>
+                ) : prompts.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '2rem' }}>
                         <Title level="H5" style={{ color: 'var(--sapContent_LabelColor)' }}>No prompts found</Title>
                         <Text style={{ color: 'var(--sapContent_LabelColor)' }}>Press {modKey}+N to create your first prompt</Text>
@@ -441,9 +467,14 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                                     setSelectedIndex(idx);
                                     handleSelectPrompt(res.prompt);
                                 }}
+                                onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    setSelectedIndex(idx);
+                                    handleExportPrompt(res.prompt);
+                                }}
                                 style={{
                                     borderLeft: idx === selectedIndex ? '3px solid var(--sapBrandColor)' : '3px solid transparent',
-                                    paddingLeft: idx === selectedIndex ? '13px' : '16px' // Adjust padding to compensate for border
+                                    paddingLeft: idx === selectedIndex ? '13px' : '16px'
                                 }}
                             >
                                 <div style={{ display: 'flex', flexDirection: 'column', width: '100%', padding: '0.5rem 0' }}>
@@ -495,7 +526,6 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     <span><kbd className="kbd">{modKey}+N</kbd> New</span>
                     <span><kbd className="kbd">{modKey}+E</kbd> Edit</span>
                     <span><kbd className="kbd">{modKey}+R</kbd> Delete</span>
-                    <span><kbd className="kbd">{modKey}+S</kbd> Share</span>
                     <span><kbd className="kbd">{modKey}+P</kbd> Partials</span>
                     <span><kbd className="kbd">Esc</kbd> Close</span>
                 </div>
@@ -671,6 +701,6 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     />
                 </FlexBox>
             </Dialog>
-        </div>
+        </div >
     );
 };
