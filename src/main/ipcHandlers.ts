@@ -56,7 +56,7 @@ export function registerHandlers(
                 if (!hasPrompts || !hasPartials) {
                     if (!hasPrompts) fs.mkdirSync(promptsFolder, { recursive: true });
                     if (!hasPartials) fs.mkdirSync(partialsFolder, { recursive: true });
-                    console.log(`Created missing workspace folders`);
+
                 }
 
                 store.set('promptsFolder', folder);

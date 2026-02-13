@@ -39,6 +39,10 @@ import '@ui5/webcomponents-icons/dist/download.js';
 import '@ui5/webcomponents-icons/dist/share.js';
 import { WorkspaceManager } from './WorkspaceManager';
 import { ImportDialog } from '../components/ImportDialog';
+import { SearchHeader } from './components/SearchHeader';
+import { PromptList } from './components/PromptList';
+import { ParameterDialog } from './components/ParameterDialog';
+import { DeleteDialog } from './components/DeleteDialog';
 
 interface SearchAppProps {
     onEditPrompt: (prompt: Prompt) => void;
@@ -64,9 +68,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
     const [pickerOptions, setPickerOptions] = useState<Record<string, Partial[]>>({});
 
     const toastRef = useRef<any>(null);
-    const listRef = useRef<HTMLDivElement>(null);
-    const themeBtnRef = useRef<any>(null);
-    const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+
     const [workspaceManagerOpen, setWorkspaceManagerOpen] = useState(false);
     const [activeWorkspaceName, setActiveWorkspaceName] = useState<string>('');
     const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -159,10 +161,19 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
         }
     }, [selectedIndex]);
 
+    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     const handleSearch = (e: any) => {
         const val = e.target.value;
         setQuery(val);
-        loadPrompts(val);
+
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        searchTimeoutRef.current = setTimeout(() => {
+            loadPrompts(val);
+        }, 300);
     };
 
     const handleSelectPrompt = async (prompt: Prompt) => {
@@ -297,18 +308,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
         loadPrompts('');
     };
 
-    const handleThemeSelect = async (e: any) => {
-        const items = e.detail.selectedItems;
-        if (!items || items.length === 0) return;
-        const item = items[0];
-        // redundancy: check dataset, generic attribute, etc.
-        const theme = item.getAttribute('data-theme') || item.dataset.theme;
-        console.log('Selecting theme:', theme);
-        if (theme) {
-            await window.electronAPI.setTheme(theme);
-            setThemeMenuOpen(false);
-        }
-    };
+
 
     // Global keyboard handler
     useEffect(() => {
@@ -347,10 +347,6 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     setDeleteDialogOpen(true);
                 }
             } else if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-                // e.preventDefault();
-                // if (prompts.length > 0) {
-                //     handleExportPrompt(prompts[selectedIndex].prompt);
-                // }
                 // User requested to remove Ctrl+S for share in list
             }
         };
@@ -363,48 +359,13 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
     return (
         <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--sapBackgroundColor)' }}>
             {/* Header / Drag Region */}
-            <div style={{
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0 1rem',
-                borderBottom: '1px solid var(--sapList_BorderColor)',
-                // @ts-ignore
-                WebkitAppRegion: 'drag',
-                userSelect: 'none'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Title level="H5" style={{ margin: 0, color: 'var(--sapTextColor)' }}>PelicanPrompt</Title>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--sapTextColor)', marginLeft: '1rem' }}>Current Workspace:</span>
-                    <div
-                        onClick={() => setWorkspaceManagerOpen(true)}
-                        style={{
-                            color: 'var(--sapTextColor)',
-                            fontSize: '0.8rem',
-                            padding: '2px 2px'
-                        }}
-                    >
-                        {activeWorkspaceName || 'Global'}
-                    </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.5rem', WebkitAppRegion: 'no-drag' } as any}>
-                    <Button
-                        icon="group"
-                        design="Transparent"
-                        onClick={() => setWorkspaceManagerOpen(true)}
-                        tooltip="Workspaces"
-                    />
-                    <Button
-                        ref={themeBtnRef}
-                        icon="palette"
-                        design="Transparent"
-                        onClick={() => setThemeMenuOpen(true)}
-                        tooltip="Change Theme"
-                    />
-                </div>
-            </div>
+            <SearchHeader
+                activeWorkspaceName={activeWorkspaceName}
+                onOpenWorkspaceManager={() => setWorkspaceManagerOpen(true)}
+                onThemeSelect={async (theme) => {
+                    await window.electronAPI.setTheme(theme);
+                }}
+            />
 
             {/* Search Bar & Actions */}
             <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -429,95 +390,20 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                 />
             </div>
 
-            <ResponsivePopover
-                open={themeMenuOpen}
-                opener={themeBtnRef.current}
-                onClose={() => setThemeMenuOpen(false)}
-            >
-                <List onSelectionChange={handleThemeSelect} selectionMode="Single">
-                    <ListItemStandard data-theme="sap_horizon">Morning Horizon (Light)</ListItemStandard>
-                    <ListItemStandard data-theme="sap_horizon_dark">Evening Horizon (Dark)</ListItemStandard>
-                    <ListItemStandard data-theme="sap_horizon_hcb">High Contrast Black</ListItemStandard>
-                    <ListItemStandard data-theme="sap_horizon_hcw">High Contrast White</ListItemStandard>
-                    <ListItemStandard data-theme="sap_fiori_3">Quartz Light</ListItemStandard>
-                    <ListItemStandard data-theme="sap_fiori_3_dark">Quartz Dark</ListItemStandard>
-                </List>
-            </ResponsivePopover>
+            <PromptList
+                prompts={prompts}
+                selectedIndex={selectedIndex}
+                hasFolder={hasFolder}
+                onSelectPrompt={handleSelectPrompt}
+                onSetSelectedIndex={setSelectedIndex}
+                onExportPrompt={handleExportPrompt}
+                onSelectFolder={handleSelectFolder}
+                isMac={isMac}
+                exporting={exporting}
+            />
 
 
-            <div ref={listRef} style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-                {!hasFolder ? (
-                    <div style={{ textAlign: 'center', padding: '2rem' }}>
-                        <Title level="H5" style={{ color: 'var(--sapContent_LabelColor)' }}>No Folder Selected</Title>
-                        <Button onClick={handleSelectFolder} style={{ marginTop: '1rem' }}>Open Folder</Button>
-                    </div>
-                ) : prompts.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2rem' }}>
-                        <Title level="H5" style={{ color: 'var(--sapContent_LabelColor)' }}>No prompts found</Title>
-                        <Text style={{ color: 'var(--sapContent_LabelColor)' }}>Press {modKey}+N to create your first prompt</Text>
-                    </div>
-                ) : (
-                    <List selectionMode="Single" style={{ height: '100%' }}>
-                        {prompts.map((res, idx) => (
-                            <ListItemCustom
-                                ref={idx === selectedIndex ? selectedItemRef : undefined}
-                                key={res.prompt.filePath}
-                                selected={idx === selectedIndex}
-                                onClick={() => {
-                                    setSelectedIndex(idx);
-                                    handleSelectPrompt(res.prompt);
-                                }}
-                                onContextMenu={(e) => {
-                                    e.preventDefault();
-                                    setSelectedIndex(idx);
-                                    handleExportPrompt(res.prompt);
-                                }}
-                                style={{
-                                    borderLeft: idx === selectedIndex ? '3px solid var(--sapBrandColor)' : '3px solid transparent',
-                                    paddingLeft: idx === selectedIndex ? '13px' : '16px'
-                                }}
-                            >
-                                <div style={{ display: 'flex', flexDirection: 'column', width: '100%', padding: '0.5rem 0' }}>
-                                    <FlexBox alignItems="Center" style={{ gap: '8px', marginBottom: '4px' }}>
-                                        {res.prompt.tag && (
-                                            <ObjectStatus state="Information" style={{ marginRight: '4px', fontWeight: 'bold' }}>
-                                                {formatTag(res.prompt.tag)}
-                                            </ObjectStatus>
-                                        )}
-                                        {res.prompt.parameters.length > 0 && (
-                                            <ObjectStatus state="Critical" style={{ marginRight: '4px', fontWeight: 'bold' }}>
-                                                {res.prompt.parameters.length}P
-                                            </ObjectStatus>
-                                        )}
-                                        {res.prompt.partials.length > 0 && (
-                                            <ObjectStatus state="Positive" style={{ marginRight: '4px', fontWeight: 'bold' }}>
-                                                {res.prompt.partials.length}P
-                                            </ObjectStatus>
-                                        )}
-                                        <Text style={{ fontWeight: 'bold', color: 'var(--sapTextColor)' }}>{res.prompt.title}</Text>
-                                    </FlexBox>
-                                    <Text style={{ fontSize: '12px', color: 'var(--sapContent_LabelColor)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {res.prompt.content.substring(0, 100).replace(/\n/g, ' ')}...
-                                    </Text>
-                                </div>
-                                {idx === selectedIndex && (
-                                    <Button
-                                        design="Transparent"
-                                        icon="share"
-                                        tooltip="Export (share)"
-                                        disabled={exporting}
-                                        onClick={(e: any) => {
-                                            e.stopPropagation();
-                                            handleExportPrompt(res.prompt);
-                                        }}
-                                        style={{ flexShrink: 0 }}
-                                    />
-                                )}
-                            </ListItemCustom>
-                        ))}
-                    </List>
-                )}
-            </div>
+
 
             <Bar design="Footer">
                 <div style={{ display: 'flex', gap: '1rem', color: 'var(--sapContent_LabelColor)', fontSize: '0.875rem' }}>
@@ -532,112 +418,28 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
             </Bar>
 
             {/* Delete confirmation dialog */}
-            <Dialog
+            {/* Delete confirmation dialog */}
+            <DeleteDialog
                 open={deleteDialogOpen}
-                headerText="Delete Prompt?"
+                prompt={promptToDelete}
                 onClose={() => setDeleteDialogOpen(false)}
-                footer={
-                    <Bar
-                        endContent={
-                            <>
-                                <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-                                <Button design="Negative" onClick={confirmDeletePrompt}>Delete</Button>
-                            </>
-                        }
-                    />
-                }
-            >
-                <div style={{ padding: '1rem' }}>
-                    <p>Are you sure you want to delete this prompt?</p>
-                    {promptToDelete && (
-                        <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '6px', marginTop: '12px' }}>
-                            <div style={{ fontWeight: 600, color: 'var(--sapBrandColor)', fontSize: '12px', marginBottom: '4px' }}>
-                                {promptToDelete.tag || 'No tag'}
-                            </div>
-                            <div style={{ fontWeight: 500, color: '#333', fontSize: '14px' }}>
-                                {promptToDelete.title}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </Dialog>
+                onConfirm={confirmDeletePrompt}
+            />
 
             {/* Parameter Dialog */}
-            <Dialog
+            {/* Parameter Dialog */}
+            <ParameterDialog
                 open={paramDialogOpen}
-                headerText="Configure Prompt"
+                prompt={paramDialogPrompt}
                 onClose={() => setParamDialogOpen(false)}
-                footer={
-                    <Bar
-                        endContent={
-                            <>
-                                <Button onClick={() => setParamDialogOpen(false)}>Cancel</Button>
-                                <Button design="Transparent" onClick={handleCopyRaw}>Copy with Placeholders</Button>
-                                <Button design="Emphasized" onClick={handleCopyWithParams}>Copy</Button>
-                            </>
-                        }
-                    />
-                }
-            >
-                <div style={{ padding: '1rem', minWidth: '400px' }}>
-                    {/* Partial Pickers */}
-                    {paramDialogPrompt?.partialPickers && paramDialogPrompt.partialPickers.length > 0 && (
-                        <>
-                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--sapContent_LabelColor)', marginBottom: '8px', textTransform: 'uppercase' }}>
-                                Options
-                            </div>
-                            {paramDialogPrompt.partialPickers.map(picker => (
-                                <div key={picker.path} style={{ marginBottom: '12px' }}>
-                                    <Label>Select {picker.path}</Label>
-                                    <Select
-                                        style={{ width: '100%' }}
-                                        onChange={(e: any) => {
-                                            setPickerValues(prev => ({ ...prev, [picker.path]: e.detail.selectedOption.dataset.value }));
-                                        }}
-                                    >
-                                        {(pickerOptions[picker.path] || []).map(opt => (
-                                            <Option
-                                                key={opt.path}
-                                                data-value={opt.path}
-                                                selected={pickerValues[picker.path] === opt.path}
-                                            >
-                                                {opt.path.split('.').pop() || opt.path}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </div>
-                            ))}
-                            <div style={{ marginBottom: '16px' }} />
-                        </>
-                    )}
-
-                    {/* Parameters */}
-                    {paramDialogPrompt?.parameters && paramDialogPrompt.parameters.length > 0 && (
-                        <>
-                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--sapContent_LabelColor)', marginBottom: '8px', textTransform: 'uppercase' }}>
-                                Parameters
-                            </div>
-                            {paramDialogPrompt.parameters.map(param => (
-                                <div key={param} style={{ marginBottom: '12px' }}>
-                                    <Label>{param}</Label>
-                                    <Input
-                                        style={{ width: '100%' }}
-                                        value={paramValues[param] || ''}
-                                        onInput={(e: any) => {
-                                            setParamValues(prev => ({ ...prev, [param]: e.target.value }));
-                                        }}
-                                        onKeyDown={(e: any) => {
-                                            if (e.key === 'Enter') {
-                                                handleCopyWithParams();
-                                            }
-                                        }}
-                                    />
-                                </div>
-                            ))}
-                        </>
-                    )}
-                </div>
-            </Dialog>
+                onCopyRaw={handleCopyRaw}
+                onCopyWithParams={handleCopyWithParams}
+                paramValues={paramValues}
+                setParamValues={setParamValues}
+                pickerValues={pickerValues}
+                setPickerValues={setPickerValues}
+                pickerOptions={pickerOptions}
+            />
 
             <Toast ref={toastRef}>Prompt deleted</Toast>
 

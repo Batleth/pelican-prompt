@@ -31,7 +31,7 @@ export class PartialService {
       return;
     }
 
-    // console.log(`Reading partials dir: ${dir}`);
+
     if (!fs.existsSync(dir)) return;
 
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -43,7 +43,7 @@ export class PartialService {
         this.loadPartialsRecursive(fullPath, depth + 1);
       } else if (entry.isFile() && entry.name.endsWith('.md')) {
         try {
-          // console.log(`Found partial file: ${fullPath}`);
+
           const content = fs.readFileSync(fullPath, 'utf-8').trim();
 
           // Skip empty partials
@@ -60,7 +60,7 @@ export class PartialService {
 
           // Convert file path to dot notation
           const dotPath = this.filePathToDotPath(fullPath);
-          // console.log(`Loaded partial: ${dotPath}`);
+
           this.partials.set(dotPath, { content, filePath: fullPath });
         } catch (error) {
           console.error(`Error loading partial ${fullPath}:`, error);
@@ -288,8 +288,7 @@ export class PartialService {
    * Get all partials in a specific folder (direct children)
    */
   public getPartialsInFolder(dotPath: string): Partial[] {
-    // console.log(`getPartialsInFolder called for: ${dotPath}`);
-    // console.log(`Total partials loaded: ${this.partials.size}`);
+
 
     const partials: Partial[] = [];
     const prefix = dotPath + '.';
@@ -308,7 +307,7 @@ export class PartialService {
       }
     }
 
-    // console.log(`Found ${partials.length} partials in ${dotPath}`);
+
     return partials.sort((a, b) => a.path.localeCompare(b.path));
   }
 

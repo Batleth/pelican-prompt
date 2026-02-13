@@ -38,9 +38,9 @@ export const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({ open, onClos
     const [createMode, setCreateMode] = useState<'global' | 'project'>('global');
     const [newWorkspaceName, setNewWorkspaceName] = useState('');
     const [createType, setCreateType] = useState<'new' | 'existing'>('new');
-
-    const [conflictError, setConflictError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
 
 
@@ -58,34 +58,35 @@ export const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({ open, onClos
     }, [open]);
 
     const handleCreateWorkspace = async () => {
+        let folder: string | null = null;
+
         if (createType === 'new') {
             // Create new workspace with folder structure
-            const folder = await window.electronAPI.createWorkspace();
-            if (folder) {
-                if (createMode === 'global') {
-                    await window.electronAPI.setGlobalWorkspace(folder);
-                } else if (newWorkspaceName.trim()) {
-                    await window.electronAPI.addProjectWorkspace(newWorkspaceName.trim(), folder);
-                }
-                setCreateDialogOpen(false);
-                setNewWorkspaceName('');
-                await loadWorkspaces();
-                onWorkspaceChanged();
-            }
+            folder = await window.electronAPI.createWorkspace();
         } else {
             // Select existing folder
-            const folder = await window.electronAPI.selectFolder();
-            if (folder) {
-                if (createMode === 'global') {
-                    await window.electronAPI.setGlobalWorkspace(folder);
-                } else if (newWorkspaceName.trim()) {
-                    await window.electronAPI.addProjectWorkspace(newWorkspaceName.trim(), folder);
-                }
-                setCreateDialogOpen(false);
-                setNewWorkspaceName('');
-                await loadWorkspaces();
-                onWorkspaceChanged();
+            folder = await window.electronAPI.selectFolder();
+        }
+
+        if (folder) {
+            // Check for duplicate workspaces
+            const isDuplicate = workspaces.some(ws => ws.path === folder) || (globalPath === folder);
+
+            if (isDuplicate) {
+                setErrorMessage(`The folder "${folder}" is already defined as a workspace.`);
+                setErrorDialogOpen(true);
+                return;
             }
+
+            if (createMode === 'global') {
+                await window.electronAPI.setGlobalWorkspace(folder);
+            } else if (newWorkspaceName.trim()) {
+                await window.electronAPI.addProjectWorkspace(newWorkspaceName.trim(), folder);
+            }
+            setCreateDialogOpen(false);
+            setNewWorkspaceName('');
+            await loadWorkspaces();
+            onWorkspaceChanged();
         }
     };
 
@@ -249,18 +250,16 @@ export const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({ open, onClos
                         </Text>
                     </FlexBox>
                 </FlexBox>
-            </Dialog>
 
+            </Dialog >
 
-
-            {/* Error Dialog */}
             <MessageBox
-                open={!!conflictError}
-                onClose={() => setConflictError(null)}
+                open={errorDialogOpen}
+                onClose={() => setErrorDialogOpen(false)}
+                titleText="Duplicate Workspace"
                 type="Error"
-                titleText="Git Operation Failed"
             >
-                {conflictError}
+                {errorMessage}
             </MessageBox>
         </>
     );

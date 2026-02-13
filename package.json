@@ -51,7 +51,6 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-    "@pmmmwh/react-refresh-webpack-plugin": "^0.6.2",
     "@ui5/webcomponents": "^2.19.1",
     "@ui5/webcomponents-fiori": "^2.19.1",
     "@ui5/webcomponents-icons": "^2.19.1",
@@ -64,7 +63,6 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-refresh": "^0.18.0",
-    "react-router-dom": "^7.13.0",
-    "simple-git": "^3.30.0"
+    "react-router-dom": "^7.13.0"
   }
 }

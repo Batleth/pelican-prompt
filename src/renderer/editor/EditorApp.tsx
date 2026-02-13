@@ -21,32 +21,16 @@ import '@ui5/webcomponents-icons/dist/share.js';
 
 // Configure Monaco Environment for Electron/Webpack
 // This ensures that the editor can load its worker scripts correctly
-import '@ui5/webcomponents-icons/dist/share.js';
+
 
 // Configure Monaco Environment for Electron/Webpack
 // This ensures that the editor can load its worker scripts correctly
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import 'monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution';
-import 'monaco-editor/esm/vs/basic-languages/handlebars/handlebars.contribution';
+import { configureMonaco } from '../config/monacoConfig';
+import { parsePathForPrompt } from '../utils/pathUtils';
+import { mapUi5ThemeToMonaco } from '../utils/themeUtils';
 
-// Configures the monaco-react wrapper to use our bundled monaco instance
-// instead of loading from CDN.
-try {
-    loader.config({ monaco });
-    console.log('[Monaco] loader configured with local instance');
-} catch (e) {
-    console.error('[Monaco] Failed to configure loader:', e);
-}
-
-(self as any).MonacoEnvironment = {
-    getWorkerUrl: function (moduleId: any, label: string) {
-        // Return a dummy worker to prevent 404 errors and build issues
-        // We cannot use actual workers because bundles are too large for electron-forge default config
-        // and manual copying is fragile.
-        // Basic editing and custom autocomplete (main thread) will still work.
-        return 'data:text/javascript;charset=utf-8,' + encodeURIComponent('self.onmessage = () => {};');
-    }
-};
+// Initialize Monaco configuration
+configureMonaco();
 
 interface EditorAppProps {
     prompt: Prompt | null;
@@ -135,15 +119,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
         loadPartials();
     }, []);
 
-    const parsePathForPrompt = (pathValue: string): { tag: string; title: string } => {
-        const parts = pathValue.split('.');
-        if (parts.length === 1) {
-            return { tag: '', title: parts[0] };
-        }
-        const title = parts.pop() || '';
-        const tag = parts.join('-');
-        return { tag, title };
-    };
+
 
     const handleSave = async () => {
         setErrorMessage(null);
@@ -207,12 +183,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
             if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
                 // If focus is in Monaco, the Monaco command handling might trigger too.
                 // However, Monaco usually stops propagation if it handles it.
-                // If it doesn't, we might trigger save twice, but handleSave has state checks (though not strict lock).
-                // To be safe, we can check if the active element is NOT the monaco editor/textarea?
-                // Actually, let's just use preventDefault. Monaco intercepts its own events before bubbling to window usually?
-                // Let's rely on handleSaveRef.
                 e.preventDefault();
-                console.log('[EditorApp] Global save shortcut triggered');
                 handleSaveRef.current();
             }
         };
@@ -282,23 +253,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
     // High Contrast -> hc-black
     // Ideally we would detect this from @ui5/webcomponents-react context or event, 
     // for now defaulting to vs-dark as it is good for code, or we could check system preference.
-    const mapUi5ThemeToMonaco = (ui5Theme: string): string => {
-        switch (ui5Theme) {
-            case 'sap_horizon':
-            case 'sap_fiori_3':
-                return 'vs';
-            case 'sap_horizon_dark':
-            case 'sap_fiori_3_dark':
-                return 'vs-dark';
-            case 'sap_horizon_hcb':
-            case 'sap_horizon_hcw':
-            case 'sap_fiori_3_hcb':
-            case 'sap_fiori_3_hcw':
-                return 'hc-black';
-            default:
-                return 'vs-dark';
-        }
-    };
+
 
     const [editorTheme, setEditorTheme] = useState('vs-dark');
 
