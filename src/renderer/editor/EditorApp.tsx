@@ -17,7 +17,10 @@ import {
 import '@ui5/webcomponents-icons/dist/nav-back.js';
 import '@ui5/webcomponents-icons/dist/save.js';
 import '@ui5/webcomponents-icons/dist/decline.js';
+import '@ui5/webcomponents-icons/dist/decline.js';
 import '@ui5/webcomponents-icons/dist/share.js';
+import '@ui5/webcomponents-icons/dist/action-settings.js';
+import { List, ResponsivePopover, ListItemCustom } from '@ui5/webcomponents-react';
 
 // Configure Monaco Environment for Electron/Webpack
 // This ensures that the editor can load its worker scripts correctly
@@ -25,7 +28,9 @@ import '@ui5/webcomponents-icons/dist/share.js';
 
 // Configure Monaco Environment for Electron/Webpack
 // This ensures that the editor can load its worker scripts correctly
-import { configureMonaco } from '../config/monacoConfig';
+// Configure Monaco Environment for Electron/Webpack
+// This ensures that the editor can load its worker scripts correctly
+import { configureMonaco, registerCompletionProviders } from '../config/monacoConfig';
 import { parsePathForPrompt } from '../utils/pathUtils';
 import { mapUi5ThemeToMonaco } from '../utils/themeUtils';
 
@@ -51,6 +56,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
     const editorRef = useRef<any>(null);
     const monacoRef = useRef<Monaco | null>(null);
     const partialsRef = useRef<Partial[]>([]);
+    const parametersRef = useRef<string[]>([]);
 
     const isPartial = !prompt?.tag && (prompt?.id === 'new-partial' || prompt?.filePath?.includes('partials'));
     const isNew = !prompt?.filePath || prompt?.id === 'new-partial';
@@ -118,6 +124,32 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
         };
         loadPartials();
     }, []);
+
+    // Load parameters for autocomplete
+    useEffect(() => {
+        const loadParams = async () => {
+            try {
+                const allParams = await window.electronAPI.getUniqueParameters();
+                parametersRef.current = allParams;
+            } catch (e) {
+                console.error('Failed to load parameters:', e);
+            }
+        };
+        loadParams();
+    }, []);
+
+    // Update completion providers when data changes (or at least once on mount/data load)
+    // Since refs are mutable and pure functions, we can register once or on mount.
+    // Ideally we register when the editor mounts, or when data arrives.
+    // The current implementation of registerCompletionProviders accepts getters, 
+    // so we only need to call it once if we pass the refs.
+    useEffect(() => {
+        // Register providers with getters that read from current refs
+        registerCompletionProviders(
+            () => partialsRef.current,
+            () => parametersRef.current
+        );
+    }, []); // Run once on mount (or could depend on nothing if config is global singleton)
 
 
 
@@ -195,39 +227,10 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
         editorRef.current = editor;
         monacoRef.current = monaco;
 
+
         // Register custom completion provider for partials
-        monaco.languages.registerCompletionItemProvider('markdown', {
-            triggerCharacters: ['>', ' '],
-            provideCompletionItems: (model, position) => {
-                const textUntilPosition = model.getValueInRange({
-                    startLineNumber: position.lineNumber,
-                    startColumn: 1,
-                    endLineNumber: position.lineNumber,
-                    endColumn: position.column
-                });
-
-                // Check if we are inside a partial tag {{> ...
-                const match = textUntilPosition.match(/\{\{>\s*([^}]*)$/);
-                if (!match) {
-                    return { suggestions: [] };
-                }
-
-                const suggestions = partialsRef.current.map(p => ({
-                    label: p.path,
-                    kind: monaco.languages.CompletionItemKind.Snippet,
-                    insertText: p.path + '}}', // Close the tag
-                    documentation: p.content.substring(0, 100),
-                    range: {
-                        startLineNumber: position.lineNumber,
-                        startColumn: position.column,
-                        endLineNumber: position.lineNumber,
-                        endColumn: position.column
-                    }
-                }));
-
-                return { suggestions };
-            }
-        });
+        // MOVED TO monacoConfig.ts - Global registration
+        // monaco.languages.registerCompletionItemProvider...
 
         // Add keybindings
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -240,6 +243,12 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
 
         // Focus editor
         editor.focus();
+
+        // Register Quick Insert Command (Ctrl+Enter / Cmd+Enter)
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+            // Validate if prompt is not empty to avoid overwriting? No, just trigger suggest.
+            editor.trigger('keyboard', 'editor.action.triggerSuggest', {});
+        });
     };
 
     const pathHint = isPartial
@@ -364,7 +373,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                     <span><kbd className="kbd">{modKey}+S</kbd> Save</span>
                     <span><kbd className="kbd">Esc</kbd> Cancel</span>
                     <span style={{ marginLeft: '8px', color: 'var(--sapContent_LabelColor)' }}>
-                        Request partials with <kbd className="kbd">{'{{>'}</kbd>
+                        Syntax: {'{param}'} and {'{>partial}'}
                     </span>
                 </div>
             </Bar>

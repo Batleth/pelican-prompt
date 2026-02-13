@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllPrompts: () => ipcRenderer.invoke('get-all-prompts'),
   savePrompt: (tag: string, title: string, content: string, existingPath?: string) =>
     ipcRenderer.invoke('save-prompt', tag, title, content, existingPath),
+  getUniqueParameters: () => ipcRenderer.invoke('get-all-parameters'),
   savePartial: (dotPath: string, content: string, existingPath?: string) =>
     ipcRenderer.invoke('save-partial', dotPath, content, existingPath),
   getPrompt: (filePath: string) => ipcRenderer.invoke('get-prompt', filePath),
@@ -71,6 +72,7 @@ declare global {
       searchPrompts: (query: string) => Promise<SearchResult[]>;
       getAllPrompts: () => Promise<Prompt[]>;
       savePrompt: (tag: string, title: string, content: string, existingPath?: string) => Promise<string>;
+      getUniqueParameters: () => Promise<string[]>;
       savePartial: (dotPath: string, content: string, existingPath?: string) => Promise<string>;
       getPrompt: (filePath: string) => Promise<Prompt | null>;
       deletePrompt: (filePath: string) => Promise<boolean>;

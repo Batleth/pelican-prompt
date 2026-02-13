@@ -61,14 +61,14 @@ describe('PartialService', () => {
             (partialService as any).partials.set('header', { content: 'Header Content' });
             (partialService as any).partials.set('footer', { content: 'Footer Content' });
 
-            const content = '{{> header }} Content {{> footer }}';
+            const content = '{> header } Content {> footer }';
             const resolved = partialService.resolvePartials(content);
 
             expect(resolved).toBe('Header Content Content Footer Content');
         });
 
         it('should return MISSING PARTIAL for unknown partials', () => {
-            const content = '{{> unknown }}';
+            const content = '{> unknown }';
             const resolved = partialService.resolvePartials(content);
 
             expect(resolved).toBe('MISSING PARTIAL unknown');

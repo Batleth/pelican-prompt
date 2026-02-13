@@ -223,7 +223,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     const partial = await window.electronAPI.getPartial(selectedPath);
                     if (partial) {
                         const escapedPath = picker.path.replace(/\./g, '\\.');
-                        const pickerRegex = new RegExp(`\\{\\{>\\s*${escapedPath}\\.\\*[^}]*\\}\\}`, 'g');
+                        const pickerRegex = new RegExp(`\\{>\\s*${escapedPath}\\.\\*[^}]*\\}`, 'g');
                         content = content.replace(pickerRegex, partial.content);
                     }
                 }
@@ -233,7 +233,8 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
         // 3. Replace Parameters
         paramDialogPrompt.parameters.forEach(param => {
             const value = paramValues[param] || '';
-            const paramRegex = new RegExp(`\\\\{${param}\\\\}`, 'gi');
+            // Match {param}, { param }, {  param  } (case insensitive)
+            const paramRegex = new RegExp(`\\{\\s*${param}\\s*\\}`, 'gi');
             content = content.replace(paramRegex, value);
         });
 
@@ -256,22 +257,21 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                     const partial = await window.electronAPI.getPartial(selectedPath);
                     if (partial) {
                         const escapedPath = picker.path.replace(/\./g, '\\.');
-                        const pickerRegex = new RegExp(`\\{\\{>\\s*${escapedPath}\\.\\*[^}]*\\}\\}`, 'g');
+                        const pickerRegex = new RegExp(`\\{>\\s*${escapedPath}\\.\\*[^}]*\\}`, 'g');
                         content = content.replace(pickerRegex, partial.content);
                     }
                 }
             }
         }
 
-        // 3. Append params instead of replacing
+        // 3. Append params list for manual filling
         const lines: string[] = [];
         paramDialogPrompt.parameters.forEach(param => {
-            const value = paramValues[param] || '';
-            lines.push(`{${param}} = ${value}`);
+            lines.push(`{ ${param} }`);
         });
 
         if (lines.length > 0) {
-            content += '\n\nReplace the following parameters in the prompt above:\n' + lines.join('\n');
+            content += '\n\nFill in placeholders:\n' + lines.join('\n');
         }
 
         await window.electronAPI.copyToClipboard(content);

@@ -115,6 +115,10 @@ export class PromptManager {
     return await this.promptService.savePrompt(tag, title, content, existingPath);
   }
 
+  public getAllUniqueParameters(): string[] {
+    return this.promptService.getAllUniqueParameters();
+  }
+
   public reloadFromDisk(): void {
     this.promptService.loadPrompts();
     this.partialService.loadPartials();

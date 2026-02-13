@@ -110,7 +110,7 @@ Hi {NAME},
 
 Welcome to {COMPANY}! We're excited to have you on board.
 
-{{> greetings.formal}}
+{> greetings.formal}
 
 Best regards,
 {SENDER_NAME}`;
@@ -259,6 +259,20 @@ Best regards,
         }
 
         return null;
+    });
+
+    ipcMain.handle('get-all-parameters', () => {
+        const pm = getPromptManager();
+        const gpm = getGlobalPromptManager();
+        if (pm) pm.reloadFromDisk();
+        if (gpm) gpm.reloadFromDisk();
+
+        const projectParams = pm ? pm.getAllUniqueParameters() : [];
+        const globalParams = gpm ? gpm.getAllUniqueParameters() : [];
+
+        // Merge and deduplicate
+        const uniqueParams = new Set([...projectParams, ...globalParams]);
+        return Array.from(uniqueParams).sort();
     });
 
     // Partial Handlers

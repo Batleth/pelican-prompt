@@ -46,19 +46,19 @@ describe('PromptService', () => {
             });
         });
 
-        it('should parse parameters', () => {
+        it('should parse parameters with and without spaces', () => {
             const filePath = '/mock/prompts/params.md';
-            const content = 'Hello {NAME}, welcome to {COMPANY}.';
+            const content = 'Hello {NAME}, welcome to { COMPANY } and {  TEST_PARAM  }.';
             (fs.readFileSync as jest.Mock).mockReturnValue(content);
 
             const result = promptService.parsePromptFile(filePath);
 
-            expect(result?.parameters).toEqual(['NAME', 'COMPANY']);
+            expect(result?.parameters).toEqual(['NAME', 'COMPANY', 'TEST_PARAM']);
         });
 
         it('should parse static partials', () => {
             const filePath = '/mock/prompts/partials.md';
-            const content = '{{> header }} Content {{> footer }}';
+            const content = '{> header } Content {> footer }';
             (fs.readFileSync as jest.Mock).mockReturnValue(content);
 
             const result = promptService.parsePromptFile(filePath);
@@ -68,7 +68,7 @@ describe('PromptService', () => {
 
         it('should parse dynamic partial pickers', () => {
             const filePath = '/mock/prompts/dynamic.md';
-            const content = '{{> tones.mail.* }} and {{> signatures.* signatures.default }}';
+            const content = '{> tones.mail.* } and {> signatures.* signatures.default }';
             (fs.readFileSync as jest.Mock).mockReturnValue(content);
 
             const result = promptService.parsePromptFile(filePath);
@@ -101,6 +101,27 @@ describe('PromptService', () => {
 
             await expect(promptService.savePrompt('invalid', 'Title', 'Content'))
                 .rejects.toThrow('Invalid tag');
+        });
+    });
+
+    describe('getAllUniqueParameters', () => {
+        it('should return all unique parameters from loaded prompts', () => {
+            // Simulate loading first prompt
+            const p1 = '/mock/prompts/p1.md';
+            const c1 = 'Hello {NAME}';
+            (fs.readFileSync as jest.Mock).mockReturnValue(c1);
+            mockTagService.extractTagFromPath.mockReturnValue('tag1');
+            promptService.handleFileChange(p1);
+
+            // Simulate loading second prompt
+            const p2 = '/mock/prompts/p2.md';
+            const c2 = 'Welcome {NAME} to {COMPANY}';
+            (fs.readFileSync as jest.Mock).mockReturnValue(c2);
+            mockTagService.extractTagFromPath.mockReturnValue('tag2');
+            promptService.handleFileChange(p2);
+
+            const params = promptService.getAllUniqueParameters();
+            expect(params).toEqual(['COMPANY', 'NAME']);
         });
     });
 });

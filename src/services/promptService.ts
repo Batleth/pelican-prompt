@@ -26,7 +26,8 @@ export class PromptService {
       const tag = this.tagService.extractTagFromPath(this.promptsFolder, filePath);
 
       // Extract parameters from content (e.g., {PARAM})
-      const paramRegex = /\{([a-zA-Z0-9_]+)\}/g;
+      // Allow optional whitespace: { PARAM } or {PARAM}
+      const paramRegex = /\{\s*([a-zA-Z0-9_]+)\s*\}/g;
       const parameters: string[] = [];
       let match;
 
@@ -44,7 +45,7 @@ export class PromptService {
       // ([^}]+)     : The content (path), capturing everything until closing brackets
       // \s*         : Optional whitespace
       // }}          : Closing tag
-      const partialTagRegex = /\{\{>\s*([^}]+)\s*\}\}/g;
+      const partialTagRegex = /\{>\s*([^}]+)\s*\}/g;
       const partials: string[] = [];
       const partialPickers: { path: string; defaultPath?: string }[] = [];
 
@@ -145,6 +146,17 @@ export class PromptService {
    */
   public getAllPrompts(): Prompt[] {
     return Array.from(this.prompts.values());
+  }
+
+  /**
+   * Get all unique parameters from all prompts
+   */
+  public getAllUniqueParameters(): string[] {
+    const params = new Set<string>();
+    for (const prompt of this.prompts.values()) {
+      prompt.parameters.forEach(p => params.add(p));
+    }
+    return Array.from(params).sort();
   }
 
   /**

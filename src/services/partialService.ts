@@ -53,7 +53,7 @@ export class PartialService {
           }
 
           // Validate partials don't contain other partials
-          if (/\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g.test(content)) {
+          if (/\{>\s*([a-zA-Z0-9_.-]+)\s*\}/g.test(content)) {
             console.error(`Partial cannot contain other partials: ${fullPath}`);
             continue;
           }
@@ -94,7 +94,7 @@ export class PartialService {
     try {
       const content = fs.readFileSync(filePath, 'utf-8').trim();
 
-      if (!content || /\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g.test(content)) {
+      if (!content || /\{>\s*([a-zA-Z0-9_.-]+)\s*\}/g.test(content)) {
         // Remove invalid partial
         const dotPath = this.filePathToDotPath(filePath);
         this.partials.delete(dotPath);
@@ -183,8 +183,8 @@ export class PartialService {
       return { valid: false, error: 'Partial content cannot be empty' };
     }
 
-    if (/\{\{>\s*([a-zA-Z0-9_.]+)\s*\}\}/g.test(trimmed)) {
-      return { valid: false, error: 'Partials cannot contain other partials ({{> }} syntax not allowed)' };
+    if (/\{>\s*([a-zA-Z0-9_.]+)\s*\}/g.test(trimmed)) {
+      return { valid: false, error: 'Partials cannot contain other partials ({> } syntax not allowed)' };
     }
 
     return { valid: true };
@@ -272,7 +272,7 @@ export class PartialService {
    * Resolve all partial references in content
    */
   public resolvePartials(content: string): string {
-    const partialRegex = /\{\{>\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
+    const partialRegex = /\{>\s*([a-zA-Z0-9_.-]+)\s*\}/g;
 
     return content.replace(partialRegex, (match, dotPath) => {
       const partial = this.partials.get(dotPath);

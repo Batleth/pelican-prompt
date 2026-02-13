@@ -60,27 +60,39 @@ export const ParameterDialog: React.FC<ParameterDialogProps> = ({
                         <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--sapContent_LabelColor)', marginBottom: '8px', textTransform: 'uppercase' }}>
                             Options
                         </div>
-                        {prompt.partialPickers.map(picker => (
-                            <div key={picker.path} style={{ marginBottom: '12px' }}>
-                                <Label>Select {picker.path}</Label>
-                                <Select
-                                    style={{ width: '100%' }}
-                                    onChange={(e: any) => {
-                                        setPickerValues(prev => ({ ...prev, [picker.path]: e.detail.selectedOption.dataset.value }));
-                                    }}
-                                >
-                                    {(pickerOptions[picker.path] || []).map(opt => (
-                                        <Option
-                                            key={opt.path}
-                                            data-value={opt.path}
-                                            selected={pickerValues[picker.path] === opt.path}
+                        {prompt.partialPickers.map(picker => {
+                            const options = pickerOptions[picker.path] || [];
+                            return (
+                                <div key={picker.path} style={{ marginBottom: '12px' }}>
+                                    <Label>Select {picker.path}</Label>
+                                    {options.length > 0 ? (
+                                        <Select
+                                            style={{ width: '100%' }}
+                                            onChange={(e: any) => {
+                                                const selected = e.detail.selectedOption;
+                                                if (selected) {
+                                                    setPickerValues(prev => ({ ...prev, [picker.path]: selected.dataset.value }));
+                                                }
+                                            }}
                                         >
-                                            {opt.path.split('.').pop() || opt.path}
-                                        </Option>
-                                    ))}
-                                </Select>
-                            </div>
-                        ))}
+                                            {options.map(opt => (
+                                                <Option
+                                                    key={opt.path}
+                                                    data-value={opt.path}
+                                                    selected={pickerValues[picker.path] === opt.path}
+                                                >
+                                                    {opt.path.split('.').pop() || opt.path}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                    ) : (
+                                        <div style={{ padding: '0.5rem', border: '1px solid var(--sapField_BorderColor)', borderRadius: '4px', color: 'var(--sapNegativeColor)', fontSize: '0.875rem' }}>
+                                            No partials found for this picker.
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                         <div style={{ marginBottom: '16px' }} />
                     </>
                 )}
