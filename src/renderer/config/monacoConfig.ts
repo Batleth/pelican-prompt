@@ -73,7 +73,7 @@ export const registerCompletionProviders = (
                 const suggestions = partials.map(p => ({
                     label: p.path,
                     kind: monaco.languages.CompletionItemKind.Snippet,
-                    insertText: p.path + '}', // Close the tag (single brace)
+                    insertText: p.path, // Do not close the tag, user or auto-close handles it
                     documentation: p.content ? p.content.substring(0, 100) : '', // Preview content
                     detail: 'Partial',
                     range: {
@@ -140,7 +140,7 @@ export const registerCompletionProviders = (
                 const suggestions = params.map(param => ({
                     label: param,
                     kind: monaco.languages.CompletionItemKind.Variable,
-                    insertText: param + '}', // Close the brace
+                    insertText: param, // Do not close the brace
                     detail: 'Parameter',
                     range: {
                         startLineNumber: position.lineNumber,
@@ -161,9 +161,15 @@ export const registerCompletionProviders = (
 
     // 3. Quick Insert Snippets (Trigger: Explicit invoke or Ctrl+Space)
     const snippetProvider = monaco.languages.registerCompletionItemProvider('markdown', {
-        provideCompletionItems: (model, position) => {
-            // Quick Insert Snippets
-            // No changes here, safe to leave as is or wrap in try/catch if needed.
+        provideCompletionItems: (model, position, context) => {
+            // Only show snippets on explicit invoke (Ctrl+Space) or if manually triggered
+            // usage of TriggerKind requires us to check the enum
+            // Invoke = 0, TriggerCharacter = 1, TriggerForIncompleteCompletions = 2
+
+            if (context.triggerKind !== monaco.languages.CompletionTriggerKind.Invoke) {
+                return { suggestions: [] };
+            }
+
             const suggestions = [
                 {
                     label: 'Quick Partial',
@@ -195,7 +201,7 @@ export const registerCompletionProviders = (
                     label: 'Quick Param',
                     kind: monaco.languages.CompletionItemKind.Snippet,
                     documentation: "Insert parameter syntax: { param }",
-                    insertText: '{${1:param}}',
+                    insertText: '{${1:param}i}',
                     insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                     range: {
                         startLineNumber: position.lineNumber,

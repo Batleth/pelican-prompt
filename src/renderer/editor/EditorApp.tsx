@@ -359,9 +359,11 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                             minimap: { enabled: false },
                             fontSize: 14,
                             wordWrap: 'on',
-                            scrollBeyondLastLine: false,
                             automaticLayout: true,
-                            padding: { top: 10, bottom: 10 }
+                            padding: { top: 10, bottom: 10 },
+                            // Disable quick suggestions to prevent auto-popup while typing
+                            // Suggestions will only appear on trigger characters ({, >) or Ctrl+Space
+                            quickSuggestions: { other: false, comments: false, strings: false }
                         }}
                     />
                 </div>
