@@ -30,7 +30,9 @@ export function registerHandlers(
     // Workspace Handlers
     ipcMain.handle('select-folder', async () => {
         try {
+            const currentPath = store.get('promptsFolder') as string;
             const result = await dialog.showOpenDialog({
+                defaultPath: currentPath,
                 properties: ['openDirectory', 'createDirectory'],
                 title: 'Select Workspace Folder',
                 buttonLabel: 'Select Workspace'
@@ -143,7 +145,17 @@ export function registerHandlers(
         }
     });
 
-    ipcMain.handle('get-prompts-folder', () => store.get('promptsFolder'));
+    ipcMain.handle('get-prompts-folder', () => {
+        // Dynamic: Check active workspace first
+        const activeId = store.get('activeWorkspaceId');
+        if (activeId) {
+            const workspaces = store.get('workspaces', []) as any[];
+            const ws = workspaces.find((w: any) => w.id === activeId);
+            if (ws) return ws.path;
+        }
+        // Fallback to stored default
+        return store.get('promptsFolder');
+    });
 
     ipcMain.handle('open-folder-in-filesystem', async (_event, folderPath?: string) => {
         try {
@@ -524,10 +536,19 @@ export function registerHandlers(
                 // Create new project PromptManager
                 const newPm = new PromptManager(ws.path);
                 setPromptManager(newPm);
+
+                // Update promptsFolder store
+                store.set('promptsFolder', ws.path);
             }
         } else {
             // No project workspace - set to null so only global is used
             setPromptManager(null as any);
+
+            // Revert promptsFolder to global path
+            const globalPath = store.get('globalWorkspacePath') as string | undefined;
+            if (globalPath) {
+                store.set('promptsFolder', globalPath);
+            }
         }
 
         const globalPath = store.get('globalWorkspacePath') as string | undefined;
@@ -536,12 +557,27 @@ export function registerHandlers(
 
     ipcMain.handle('delete-project-workspace', async (_event, workspaceId: string) => {
         let workspaces = store.get('workspaces', []) as any[];
+        const wsToDelete = workspaces.find((w: any) => w.id === workspaceId);
         workspaces = workspaces.filter((w: any) => w.id !== workspaceId);
         store.set('workspaces', workspaces);
 
         // If this was the active workspace, clear it
         if (store.get('activeWorkspaceId') === workspaceId) {
             store.set('activeWorkspaceId', null);
+
+            // Destroy current project PromptManager to clear prompts from UI
+            const currentPm = getPromptManager();
+            if (currentPm) {
+                currentPm.destroy();
+                setPromptManager(null as any);
+            }
+
+            // Check if promptsFolder matches this workspace, if so revert to global
+            const currentFolder = store.get('promptsFolder');
+            if (wsToDelete && currentFolder === wsToDelete.path) {
+                const globalPath = store.get('globalWorkspacePath');
+                store.set('promptsFolder', globalPath);
+            }
         }
         return true;
     });
