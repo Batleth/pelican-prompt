@@ -98,30 +98,32 @@ export function registerHandlers(
                 fs.mkdirSync(partialsFolder, { recursive: true });
 
                 // Create example prompt
-                const examplePromptPath = path.join(promptsFolder, 'com', 'mail');
+                const examplePromptPath = path.join(promptsFolder, 'communication', 'app');
                 fs.mkdirSync(examplePromptPath, { recursive: true });
-                const examplePromptFile = path.join(examplePromptPath, 'welcome.md');
-                const examplePromptContent = `---
-tag: com-mail
-title: welcome
----
-
-Hi {NAME},
-
-Welcome to {COMPANY}! We're excited to have you on board.
-
-{> greetings.formal}
-
-Best regards,
-{SENDER_NAME}`;
+                const examplePromptFile = path.join(examplePromptPath, 'hello.md');
+                const examplePromptContent = `Write a welcome message to {name}. {>tones.* }`;
                 fs.writeFileSync(examplePromptFile, examplePromptContent, 'utf-8');
 
                 // Create example partial
-                const examplePartialPath = path.join(partialsFolder, 'greetings');
+                const examplePartialPath = path.join(partialsFolder, 'tones');
                 fs.mkdirSync(examplePartialPath, { recursive: true });
-                const examplePartialFile = path.join(examplePartialPath, 'formal.md');
-                const examplePartialContent = `We look forward to working with you and supporting your success in your new role.`;
+                const examplePartialFile = path.join(examplePartialPath, 'casual.md');
+                const examplePartialContent = `
+                Your tone must be as following:
+                Vibe: Approachable, relaxed, and conversational.
+                Voice: Use "I" and "you"; feel free to use common contractions (can't, won't, it's).
+                Style: Keep sentences punchy and varied. Occasional humor, slang, or emojis are welcome if they fit the context.
+                Goal: Sound like a helpful friend or a savvy peer—warm and relatable, never stiff.`;
                 fs.writeFileSync(examplePartialFile, examplePartialContent, 'utf-8');
+
+                const examplePartialFile2 = path.join(examplePartialPath, 'professional.md');
+                const examplePartialContent2 = `
+                Your tone must be as following:
+                Vibe: Polished, objective, and authoritative.
+                Voice: Maintain a respectful distance. Prioritize clarity and precision over personality.
+                Style: Use full words (avoid contractions) and structured syntax. Organize information logically with clear transitions.
+                Goal: Sound like an expert consultant—competent, reliable, and focused on delivering value without fluff.`;
+                fs.writeFileSync(examplePartialFile2, examplePartialContent2, 'utf-8');
 
                 store.set('promptsFolder', baseFolder);
 

@@ -24,12 +24,6 @@ import { List, ResponsivePopover, ListItemCustom } from '@ui5/webcomponents-reac
 
 // Configure Monaco Environment for Electron/Webpack
 // This ensures that the editor can load its worker scripts correctly
-
-
-// Configure Monaco Environment for Electron/Webpack
-// This ensures that the editor can load its worker scripts correctly
-// Configure Monaco Environment for Electron/Webpack
-// This ensures that the editor can load its worker scripts correctly
 import { configureMonaco, registerCompletionProviders } from '../config/monacoConfig';
 import { parsePathForPrompt } from '../utils/pathUtils';
 import { mapUi5ThemeToMonaco } from '../utils/themeUtils';
@@ -228,9 +222,7 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
         monacoRef.current = monaco;
 
 
-        // Register custom completion provider for partials
-        // MOVED TO monacoConfig.ts - Global registration
-        // monaco.languages.registerCompletionItemProvider...
+
 
         // Add keybindings
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {

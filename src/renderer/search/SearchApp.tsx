@@ -354,8 +354,7 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [prompts, selectedIndex, deleteDialogOpen, paramDialogOpen, onEditPrompt, onOpenPartials, handleExportPrompt]);
-    // ...
-    // ...
+
     return (
         <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--sapBackgroundColor)' }}>
             {/* Header / Drag Region */}
@@ -418,7 +417,6 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
             </Bar>
 
             {/* Delete confirmation dialog */}
-            {/* Delete confirmation dialog */}
             <DeleteDialog
                 open={deleteDialogOpen}
                 prompt={promptToDelete}
@@ -426,7 +424,6 @@ export const SearchApp: React.FC<SearchAppProps> = ({ onEditPrompt, onOpenPartia
                 onConfirm={confirmDeletePrompt}
             />
 
-            {/* Parameter Dialog */}
             {/* Parameter Dialog */}
             <ParameterDialog
                 open={paramDialogOpen}
