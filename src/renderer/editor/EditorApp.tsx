@@ -361,9 +361,8 @@ export const EditorApp: React.FC<EditorAppProps> = ({ prompt, onClose }) => {
                             wordWrap: 'on',
                             automaticLayout: true,
                             padding: { top: 10, bottom: 10 },
-                            // Disable quick suggestions to prevent auto-popup while typing
-                            // Suggestions will only appear on trigger characters ({, >) or Ctrl+Space
-                            quickSuggestions: { other: false, comments: false, strings: false }
+                            // Enable quick suggestions for words/markdown, but custom snippets are restricted to Invite/TriggerChar
+                            quickSuggestions: { other: true, comments: false, strings: false }
                         }}
                     />
                 </div>

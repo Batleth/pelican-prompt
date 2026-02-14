@@ -201,7 +201,7 @@ export const registerCompletionProviders = (
                     label: 'Quick Param',
                     kind: monaco.languages.CompletionItemKind.Snippet,
                     documentation: "Insert parameter syntax: { param }",
-                    insertText: '{${1:param}i}',
+                    insertText: '{${1:param}}',
                     insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                     range: {
                         startLineNumber: position.lineNumber,
