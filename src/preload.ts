@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-partial', dotPath, content, existingPath),
   getPrompt: (filePath: string) => ipcRenderer.invoke('get-prompt', filePath),
   deletePrompt: (filePath: string) => ipcRenderer.invoke('delete-prompt', filePath),
+  deletePartial: (filePath: string) => ipcRenderer.invoke('delete-partial', filePath),
   copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
   openEditor: (prompt?: Prompt) => ipcRenderer.invoke('open-editor', prompt),
   closeWindow: () => ipcRenderer.invoke('close-window'),
@@ -76,6 +77,7 @@ declare global {
       savePartial: (dotPath: string, content: string, existingPath?: string) => Promise<string>;
       getPrompt: (filePath: string) => Promise<Prompt | null>;
       deletePrompt: (filePath: string) => Promise<boolean>;
+      deletePartial: (filePath: string) => Promise<boolean>;
       copyToClipboard: (text: string) => Promise<boolean>;
       openEditor: (prompt?: Prompt) => Promise<void>;
       closeWindow: () => Promise<void>;

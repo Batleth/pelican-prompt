@@ -75,8 +75,9 @@ export class PartialService {
   private filePathToDotPath(filePath: string): string {
     const relativePath = path.relative(this.partialsFolder, filePath);
     const pathWithoutExt = relativePath.replace(/\.md$/, '');
-    // Ensure we use dots instead of system separator
-    return pathWithoutExt.split(path.sep).join('.');
+    // Ensure we use dots instead of system separator. normalize to forward slashes first to be safe
+    const normalized = pathWithoutExt.split(path.sep).join('/');
+    return normalized.split('/').join('.');
   }
 
   /**
@@ -111,10 +112,33 @@ export class PartialService {
   /**
    * Handle partial file removal
    */
+  /**
+   * Handle partial file removal - for internal watcher use
+   */
   public handlePartialRemove(filePath: string): void {
     const dotPath = this.filePathToDotPath(filePath);
     this.partials.delete(dotPath);
     this.tagService.cleanupEmptyFolders(path.dirname(filePath), this.partialsFolder);
+  }
+
+  /**
+   * Delete a partial file - for user action
+   */
+  public async deletePartial(filePath: string): Promise<void> {
+    try {
+      console.log(`Attempting to delete partial: ${filePath}`);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`File deleted from disk: ${filePath}`);
+      } else {
+        console.warn(`File not found on disk, clearing from memory only: ${filePath}`);
+      }
+      // Always remove from memory map to ensure UI updates
+      this.handlePartialRemove(filePath);
+    } catch (error: any) {
+      console.error(`Error deleting partial ${filePath}:`, error);
+      throw new Error(`Failed to delete partial: ${error.message}`);
+    }
   }
 
   /**

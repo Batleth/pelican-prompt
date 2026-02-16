@@ -58,7 +58,8 @@ export class PromptManager {
     this.watcher
       .on('add', (filePath) => this.handleFileChange(filePath))
       .on('change', (filePath) => this.handleFileChange(filePath))
-      .on('unlink', (filePath) => this.handleFileRemove(filePath));
+      .on('unlink', (filePath) => this.handleFileRemove(filePath))
+      .on('error', (error) => console.error('Prompts watcher error:', error));
 
     // Watch partials folder
     this.partialsWatcher = chokidar.watch(`${this.partialsFolder}/**/*.md`, {
@@ -70,7 +71,8 @@ export class PromptManager {
     this.partialsWatcher
       .on('add', (filePath) => this.handlePartialChange(filePath))
       .on('change', (filePath) => this.handlePartialChange(filePath))
-      .on('unlink', (filePath) => this.handlePartialRemove(filePath));
+      .on('unlink', (filePath) => this.handlePartialRemove(filePath))
+      .on('error', (error) => console.error('Partials watcher error:', error));
   }
 
   private handleFileChange(filePath: string): void {
@@ -104,6 +106,10 @@ export class PromptManager {
   public async deletePrompt(filePath: string): Promise<void> {
     await this.promptService.deletePrompt(filePath);
     this.searchService.rebuildIndex(this.promptService.getAllPrompts());
+  }
+
+  public async deletePartial(filePath: string): Promise<void> {
+    await this.partialService.deletePartial(filePath);
   }
 
   public async savePrompt(

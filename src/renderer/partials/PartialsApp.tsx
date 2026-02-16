@@ -94,10 +94,18 @@ export const PartialsApp: React.FC<PartialsAppProps> = ({ onEditPartial, onClose
 
     const confirmDeletePartial = async () => {
         if (partialToDelete) {
-            await window.electronAPI.deletePrompt(partialToDelete.filePath);
-            loadPartials(query);
-            setDeleteDialogOpen(false);
-            setPartialToDelete(null);
+            try {
+                await window.electronAPI.deletePartial(partialToDelete.filePath);
+                loadPartials(query);
+                setDeleteDialogOpen(false);
+                setPartialToDelete(null);
+            } catch (error: any) {
+                console.error('Failed to delete partial:', error);
+                setDeleteDialogOpen(false); // Close dialog anyway
+                // Ideally show a message, but for now console is better than stuck dialog.
+                // We'll use the toast if available or alert
+                alert(`Failed to delete partial: ${error.message}`);
+            }
         }
     };
 

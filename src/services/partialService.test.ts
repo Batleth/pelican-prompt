@@ -96,4 +96,34 @@ describe('PartialService', () => {
             expect(result).toHaveLength(0);
         });
     });
+
+    describe('deletePartial', () => {
+        it('should delete existing file', async () => {
+            (fs.existsSync as jest.Mock).mockReturnValue(true);
+            (fs.unlinkSync as jest.Mock).mockImplementation(() => { });
+
+            await partialService.deletePartial('/mock/partials/test.md');
+
+            expect(fs.unlinkSync).toHaveBeenCalledWith('/mock/partials/test.md');
+        });
+    });
+
+    describe('Path Handling', () => {
+        it('should handle Windows separators correctly', () => {
+            // We need to access private method or test via loadPartials logic
+            // But since filePathToDotPath is private, let's test via handlePartialChange which uses it
+            const weirdPath = path.join(mockPartialsFolder, 'subfolder', 'deep', 'file.md');
+            // On windows this will be ...\subfolder\deep\file.md
+
+            (fs.readFileSync as jest.Mock).mockReturnValue('content');
+
+            partialService.handlePartialChange(weirdPath);
+
+            const expectedDotPath = 'subfolder.deep.file';
+            const partial = partialService.getPartial(expectedDotPath);
+
+            expect(partial).not.toBeNull();
+            expect(partial?.content).toBe('content');
+        });
+    });
 });

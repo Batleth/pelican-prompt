@@ -3,75 +3,108 @@
 
   # Pelican Prompt
 
-  **A powerful, file-based prompt management tool for the modern AI workflow.**
+  > A powerful, file-based prompt management tool for the modern AI workflow.
 
-  [Features](#features) • [Getting Started](#getting-started) • [Contribution](#contribution)
+  [![Version](https://img.shields.io/github/v/release/Batleth/pelican-prompt)](https://github.com/Batleth/pelican-prompt/releases)
+  [![License](https://img.shields.io/github/license/Batleth/pelican-prompt)](LICENSE)
+
+  [Features](#what-is-pelican-prompt) • [Getting Started](#-getting-started) • [Contribution](#-for-developers-contribution-guide)
 
 </div>
 
-# Features
-PelicanPrompt acts as your **local IDE for prompts**, offering:
-- **Structured Storage**: Organize prompts and partials in a standard file system.
-- **Reusable Components**: Define "partials" (like `tones/professional.md`) and import them anywhere.
-- **Instant Customization**: Auto-detect variables (`{name}`) and fill them via a clean UI before copying.
-- **Shareable Prompts**: Share prompts by copying a compressed string and paste into your teams chat.
 ---
 
-# Getting Started
-## User Guide
-### Installation
-> [!NOTE]
-> Currently in active development. Build from source or check [Releases](https://github.com/Batleth/pelican-prompt/releases) and Download App for Windows, Linux and MacOS.
+## 🌟 For Users: Get Started
 
-### Quick Start
-1. **Set Workspace**: On first launch, select a folder to store your prompts (or let PelicanPrompt create one).
-2. **Create a Partial**: Go to "Partials" and create `tones.active`. Write: "Use an active voice and short sentences."
-3. **Create a Prompt**: Create a new prompt `email.welcome`. Write:
+### <a id="what-is-pelican-prompt"></a>What is Pelican Prompt?
+Pelican Prompt acts as your **local library for prompts**. It solves the chaos of managing prompts across different services and tools, like ChatGPT, Claude, MicrosoftCopilot or even your own custom tools. The GenAI landscape is moving fast and tools are changing rapidly, but Pelican Prompt is here to help you manage your prompts in a simple and efficient way.
+
+* **Structured Storage:** Organize prompts and partials in a standard file system.
+* **Reusable Components:** Define "partials" (like `tones/professional.md`) and import them anywhere using `{> tones.professional}`.
+* **Instant Customization:** Auto-detects variables (`{name}`) and provides a clean UI to fill them before copying.
+* **Shareable Prompts:** Generate a compressed string of your prompt to paste directly into team chats.
+
+### <a id="getting-started"></a>📥 How to Install
+We provide pre-built binaries for ease of use.
+
+1.  Navigate to the **[Releases Page](https://github.com/Batleth/pelican-prompt/releases)**.
+2.  Download the latest version for your OS (Windows `.exe`, macOS `.dmg`, or Linux `.deb/.rpm`).
+3.  **Installation Note:** Since this is an independent project, you may need to:
+    * **Windows:** Click "More Info" -> "Run Anyway" on SmartScreen.
+    * **macOS:** Right-click the app and select "Open" to bypass the "unidentified developer" warning.
+
+### 🚀 Quick Start
+Start managing your prompts in 3 steps:
+
+1. **Set Workspace:** On first launch, select a folder to store your prompts (or let PelicanPrompt create one).
+2. **Create a Prompt:** Create a file named `email.welcome.md` and write:
    ```markdown
    Subject: Welcome {name}!
-   {> tones.active}
    We are glad you joined {company}.
    ```
-4. **Use It**: Search for "welcome", press `Enter`, fill in `name` and `company`, and copy the result to your clipboard. Or copy it with placeholders and fill them in later.
+3. **Use It:** Search for "welcome", press `Enter`, fill in the `name` and `company` fields, and copy the result to your clipboard.
+
+### 4. Use Partials
+Open the Partials Libary with the shortcut `Ctrl+P`.
+Create a file named `tones.professional.md` and write:
+```markdown
+Be professional and concise.
+```
+Then use it in your prompt:
+```markdown
+Subject: Welcome {name}!
+{> tones.professional}
+We are glad you joined {company}.
+```
+
+You can also use the partial selection by defining it like this:
+```markdown
+Subject: Welcome {name}!
+{> tones.* }
+We are glad you joined {company}.
+```
+This will create a selection of all partials in the tones folder and let you select one of them to be inserted into the prompt.
+---
+
+## <a id="contribution"></a>🛠 For Developers: Contribution Guide
+
+### 🏗 Development Setup
+To run this project locally, ensure you have **Node.js 20+** installed.
+
+1. **Clone & Install:**
+   ```bash
+   git clone https://github.com/Batleth/pelican-prompt.git
+   cd pelican-prompt
+   npm install
+   ```
+
+2. **Run Dev Environment:**
+   ```bash
+   npm start
+   ```
+   *This runs `electron-forge start` with hot module replacement.*
+
+### 🧪 Testing & Building
+
+* **Run Tests:**
+  ```bash
+  npm test
+  ```
+* **Build Production Binaries:**
+  ```bash
+  npm run make
+  ```
+  *Note: Binaries will be output to the `/out` folder.*
+
+### 🤝 How to Contribute
+
+We love PRs! Here is how to help:
+
+1. **Check Issues:** Look for "good first issue" tags.
+2. **Branching:** Create a feature branch (`git checkout -b feature/AmazingFeature`).
+3. **Style:** Follow the existing linting rules (`npm run lint`).
+4. **Submit:** Open a Pull Request with a clear description of changes.
 
 ---
 
-# Contribution
-## Environment Setup
-Clone the repository and install dependencies.
-```bash
-git clone https://github.com/Batleth/pelican-prompt.git
-cd pelican-prompt
-npm install
-```
-
-## Local Execution
-Run the application in development mode with hot-reloading.
-```bash
-npm start
-```
-
-## Quality Assurance
-Run the test suite to ensure stability.
-```bash
-# Run Unit Tests
-npm test
-
-# Run Linter
-npm run lint
-```
-
-## Build Pipeline
-Package the application for production (creates an executable in `out/` folder).
-```bash
-npm run make
-```
-
----
-
-## Tech Stack
-- **Core**: Electron, TypeScript
-- **Frontend**: React 19, Vite
-- **UI**: UI5 Web Components, Monaco Editor
-- **Search**: Lunr.js (Local full-text search)
-- **State**: Electron Store (Persistence)
+built by [Batleth](https://github.com/Batleth)

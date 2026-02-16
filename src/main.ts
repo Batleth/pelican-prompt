@@ -11,6 +11,9 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
+// Disable GPU Acceleration to fix cache creation errors
+app.disableHardwareAcceleration();
+
 const store: any = new Store();
 const windowManager = new WindowManager();
 let promptManager: PromptManager | null = null;

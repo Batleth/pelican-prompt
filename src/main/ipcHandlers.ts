@@ -324,6 +324,31 @@ export function registerHandlers(
         return merged;
     });
 
+    ipcMain.handle('delete-partial', async (_event, filePath: string) => {
+        const pm = getPromptManager();
+        const gpm = getGlobalPromptManager();
+
+        let targetPm: PromptManager | null = null;
+
+        if (pm) {
+            const rel = path.relative(pm.getPartialsFolder(), filePath);
+            if (!rel.startsWith('..') && !path.isAbsolute(rel)) {
+                targetPm = pm;
+            }
+        }
+
+        if (!targetPm && gpm) {
+            const rel = path.relative(gpm.getPartialsFolder(), filePath);
+            if (!rel.startsWith('..') && !path.isAbsolute(rel)) {
+                targetPm = gpm;
+            }
+        }
+
+        if (!targetPm) throw new Error('Could not find workspace for this partial');
+        await targetPm.deletePartial(filePath);
+        return true;
+    });
+
     ipcMain.handle('save-partial', async (_event, dotPath: string, content: string, existingPath?: string) => {
         const pm = getPromptManager();
         const gpm = getGlobalPromptManager();
